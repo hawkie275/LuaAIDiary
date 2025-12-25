@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./docker/web
+      dockerfile: Dockerfile
+    container_name: luwordpress-web
+    ports:
+      - "8080:80"
+    volumes:
+      - ./app:/app:cached
+      - ./wp-content:/app/wp-content:cached
+      - ./tests:/tests:cached
+      - ./static:/usr/local/openresty/nginx/html/static:cached
+      - ./docker/web/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - logs:/var/log/nginx
+    environment:
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LAPIS_ENVIRONMENT=development
+    depends_on:
+      - db
+      - redis
+    networks:
+      - luwordpress-network
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: luwordpress-db
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "3306:3306"
+    networks:
+      - luwordpress-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: luwordpress-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - luwordpress-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+networks:
+  luwordpress-network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+  logs:
+    driver: local

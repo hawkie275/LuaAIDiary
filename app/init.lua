@@ -1,0 +1,232 @@
+-- LuWordPress アプリケーション初期化
+local lapis = require("lapis")
+local app = lapis.Application()
+
+-- モデルの初期化
+local User = require("models.user")
+local Post = require("models.post")
+local Category = require("models.category")
+local Tag = require("models.tag")
+local Comment = require("models.comment")
+local UserSettings = require("models.user_settings")
+
+-- ユーティリティの初期化
+local validator = require("utils.validator")
+local crypto = require("utils.crypto")
+local slug_util = require("utils.slug")
+
+-- テーマコントローラーの初期化
+local theme_controller = require("controllers.theme_controller")
+
+-- ========================================
+-- WordPress風URLルーティング
+-- ========================================
+
+-- ホームページ
+app:get("/", function(self)
+    return theme_controller.index()
+end)
+
+-- 単一投稿: /:slug
+app:get("/:slug", function(self)
+    return theme_controller.single(self.params.slug)
+end)
+
+-- カテゴリーアーカイブ: /category/:slug
+app:get("/category/:slug", function(self)
+    return theme_controller.category(self.params.slug)
+end)
+
+-- タグアーカイブ: /tag/:slug
+app:get("/tag/:slug", function(self)
+    return theme_controller.tag(self.params.slug)
+end)
+
+-- 著者アーカイブ: /author/:username
+app:get("/author/:username", function(self)
+    return theme_controller.author(self.params.username)
+end)
+
+-- 検索: /search
+app:get("/search", function(self)
+    return theme_controller.search()
+end)
+
+-- 日付アーカイブ: /:year/:month/:day
+app:get("/:year/:month/:day", function(self)
+    local year = self.params.year
+    local month = self.params.month
+    local day = self.params.day
+    
+    -- 数値チェック
+    if tonumber(year) and tonumber(month) and tonumber(day) then
+        return theme_controller.date_archive(year, month, day)
+    else
+        return theme_controller.error_404()
+    end
+end)
+
+-- 日付アーカイブ: /:year/:month
+app:get("/:year/:month", function(self)
+    local year = self.params.year
+    local month = self.params.month
+    
+    -- 数値チェック
+    if tonumber(year) and tonumber(month) then
+        return theme_controller.date_archive(year, month, nil)
+    else
+        return theme_controller.error_404()
+    end
+end)
+
+-- 日付アーカイブ: /:year
+app:get("/:year", function(self)
+    local year = self.params.year
+    
+    -- 数値チェック
+    if tonumber(year) then
+        return theme_controller.date_archive(year, nil, nil)
+    else
+        return theme_controller.error_404()
+    end
+end)
+
+-- ========================================
+-- APIエンドポイント（既存）
+-- ========================================
+
+app:get("/health", function(self)
+    self.res.headers["Content-Type"] = "application/json"
+    return {
+        json = {
+            status = "ok",
+            service = "LuWordPress",
+            version = "0.1.0",
+            timestamp = os.time()
+        }
+    }
+end)
+
+app:get("/api/db-test", function(self)
+    local mysql = require("resty.mysql")
+    local db = mysql:new()
+    
+    local ok, err = db:connect({
+        host = os.getenv("MYSQL_HOST"),
+        port = tonumber(os.getenv("MYSQL_PORT")),
+        database = os.getenv("MYSQL_DATABASE"),
+        user = os.getenv("MYSQL_USER"),
+        password = os.getenv("MYSQL_PASSWORD"),
+        charset = "utf8mb4"
+    })
+    
+    if not ok then
+        self.res.headers["Content-Type"] = "application/json"
+        return {
+            json = {
+                status = "error",
+                message = "データベース接続に失敗しました",
+                error = err
+            }
+        }
+    end
+    
+    local res, err = db:query("SELECT VERSION() as version")
+    db:close()
+    
+    if not res then
+        self.res.headers["Content-Type"] = "application/json"
+        return {
+            json = {
+                status = "error",
+                message = "クエリ実行に失敗しました",
+                error = err
+            }
+        }
+    end
+    
+    self.res.headers["Content-Type"] = "application/json"
+    return {
+        json = {
+            status = "success",
+            message = "データベース接続成功",
+            mysql_version = res[1].version,
+            database = os.getenv("MYSQL_DATABASE"),
+            host = os.getenv("MYSQL_HOST")
+        }
+    }
+end)
+
+app:get("/api/redis-test", function(self)
+    local redis = require("resty.redis")
+    local red = redis:new()
+    
+    red:set_timeout(1000)
+    
+    local ok, err = red:connect(os.getenv("REDIS_HOST"), tonumber(os.getenv("REDIS_PORT")))
+    
+    if not ok then
+        self.res.headers["Content-Type"] = "application/json"
+        return {
+            json = {
+                status = "error",
+                message = "Redis接続に失敗しました",
+                error = err
+            }
+        }
+    end
+    
+    local res, err = red:ping()
+    
+    if not res then
+        self.res.headers["Content-Type"] = "application/json"
+        return {
+            json = {
+                status = "error",
+                message = "Ping失敗",
+                error = err
+            }
+        }
+    end
+    
+    self.res.headers["Content-Type"] = "application/json"
+    return {
+        json = {
+            status = "success",
+            message = "Redis接続成功",
+            response = res
+        }
+    }
+end)
+
+-- モデルテストエンドポイント
+app:get("/api/models-test", function(self)
+    self.res.headers["Content-Type"] = "application/json"
+    
+    local results = {
+        status = "ok",
+        models_loaded = true,
+        models = {
+            user = User ~= nil,
+            post = Post ~= nil,
+            category = Category ~= nil,
+            tag = Tag ~= nil,
+            comment = Comment ~= nil,
+            user_settings = UserSettings ~= nil
+        },
+        utils = {
+            validator = validator ~= nil,
+            crypto = crypto ~= nil,
+            slug_util = slug_util ~= nil
+        }
+    }
+    
+    return {json = results}
+end)
+
+-- 404エラーハンドリング
+app:match("*", function(self)
+    return theme_controller.error_404()
+end)
+
+return app

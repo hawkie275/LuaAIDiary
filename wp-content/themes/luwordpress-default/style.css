@@ -1,0 +1,223 @@
+/*
+Theme Name: LuWordPress Default
+Theme URI: https://luwordpress.example.com
+Description: LuWordPress用のデフォルトテーマ。シンプルで軽量なブログテーマです。
+Version: 1.0.0
+Author: LuWordPress Team
+Author URI: https://luwordpress.example.com
+Tags: blog, minimal, responsive, lua
+Text Domain: luwordpress-default
+*/
+
+/* ========================================
+   リセットCSS
+   ======================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+}
+
+a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* ========================================
+   レイアウト
+   ======================================== */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* ========================================
+   ヘッダー
+   ======================================== */
+.site-header {
+    background-color: #fff;
+    border-bottom: 1px solid #ddd;
+    padding: 20px 0;
+    margin-bottom: 40px;
+}
+
+.site-title {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.site-title a {
+    color: #333;
+    text-decoration: none;
+}
+
+.site-description {
+    color: #666;
+    font-size: 14px;
+}
+
+/* ========================================
+   ナビゲーション
+   ======================================== */
+.site-navigation {
+    margin-top: 20px;
+}
+
+.menu {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.menu li a {
+    color: #333;
+    font-weight: 500;
+}
+
+/* ========================================
+   メインコンテンツ
+   ======================================== */
+.site-content {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 40px;
+}
+
+.main-content {
+    flex: 1;
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* ========================================
+   記事
+   ======================================== */
+.post {
+    margin-bottom: 40px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid #eee;
+}
+
+.post:last-child {
+    border-bottom: none;
+}
+
+.entry-header {
+    margin-bottom: 20px;
+}
+
+.entry-title {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.entry-title a {
+    color: #333;
+}
+
+.entry-meta {
+    color: #666;
+    font-size: 14px;
+}
+
+.entry-meta a {
+    color: #666;
+}
+
+.entry-content {
+    margin-bottom: 20px;
+    line-height: 1.8;
+}
+
+.entry-content p {
+    margin-bottom: 1em;
+}
+
+.entry-content h2 {
+    font-size: 24px;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.entry-content h3 {
+    font-size: 20px;
+    margin-top: 25px;
+    margin-bottom: 12px;
+}
+
+.entry-footer {
+    color: #666;
+    font-size: 14px;
+}
+
+/* ========================================
+   サイドバー
+   ======================================== */
+.sidebar {
+    width: 300px;
+    flex-shrink: 0;
+}
+
+.widget {
+    background-color: #fff;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.widget-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #0066cc;
+}
+
+/* ========================================
+   フッター
+   ======================================== */
+.site-footer {
+    background-color: #333;
+    color: #fff;
+    padding: 30px 0;
+    margin-top: 40px;
+    text-align: center;
+}
+
+.site-footer a {
+    color: #fff;
+}
+
+/* ========================================
+   レスポンシブ
+   ======================================== */
+@media (max-width: 768px) {
+    .site-content {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+    }
+    
+    .menu {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
