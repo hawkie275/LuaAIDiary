@@ -1,189 +1,195 @@
 # LuaAIDiary
 
-LuaベースのWordPressライクなブログシステム
+A Lua-based WordPress-like blog system
 
-## 概要
+## Overview
 
-LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、MySQL、Redisを使用した高性能なブログシステムです。Docker Composeを使用して簡単にセットアップでき、テスト実行しながら開発できる環境を提供します。
+LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJIT), Lapis, MySQL, and Redis. It provides an easy setup using Docker Compose and a development environment that allows testing during development.
 
-## 主な特徴
+## Key Features
 
-- **高性能**: OpenResty + Lapisによる非同期I/O処理
-- **軽量**: LuaJITによる高速なスクリプト実行
-- **テスト環境**: Bustedによる自動テスト対応
-- **開発ツール**: Makefile、Luacheckによる開発効率化
-- **スケーラブル**: Redis、MySQLによる水平スケーリング対応
-- **ホットリロード**: コード変更時の自動反映
+- **High Performance**: Asynchronous I/O processing with OpenResty + Lapis
+- **Lightweight**: Fast script execution with LuaJIT
+- **Test Environment**: Automated testing support with Busted
+- **Developer Tools**: Enhanced development efficiency with Makefile and Luacheck
+- **Scalable**: Horizontal scaling with Redis and MySQL
+- **Hot Reload**: Automatic reflection of code changes
 
-## 技術スタック
+## Tech Stack
 
-- **Webフレームワーク**: Lapis (OpenResty/Nginx + LuaJIT)
-- **データベース**: MySQL 8.0
-- **キャッシュ/セッション**: Redis 7
-- **テストフレームワーク**: Busted
-- **静的解析**: Luacheck
-- **コンテナ化**: Docker & Docker Compose
-- **言語**: Lua
+- **Web Framework**: Lapis (OpenResty/Nginx + LuaJIT)
+- **Database**: MySQL 8.0
+- **Cache/Session**: Redis 7
+- **Test Framework**: Busted
+- **Static Analysis**: Luacheck
+- **Containerization**: Docker & Docker Compose
+- **Language**: Lua
 
-## ディレクトリ構造
+## Directory Structure
 
 ```
 LuaAIDiary/
-├── app/                        # アプリケーションコード
-│   ├── init.lua               # Lapisアプリケーションエントリーポイント
-│   ├── config/                # 設定ファイル
-│   ├── controllers/           # コントローラー層
-│   ├── models/                # モデル層
-│   ├── views/                 # ビュー層（テンプレート）
-│   ├── middleware/            # ミドルウェア
-│   └── utils/                 # ユーティリティ関数
-├── tests/                     # テストコード
-│   ├── test_helper.lua        # テストヘルパー
-│   ├── test_database.lua      # データベーステスト
-│   └── test_health.lua        # ヘルスチェックテスト
-├── static/                    # 静的ファイル
+├── app/                        # Application code
+│   ├── init.lua               # Lapis application entry point
+│   ├── config/                # Configuration files
+│   ├── controllers/           # Controller layer
+│   ├── models/                # Model layer
+│   ├── views/                 # View layer (templates)
+│   ├── middleware/            # Middleware
+│   ├── theme_engine/          # Theme engine (WordPress compatibility)
+│   └── utils/                 # Utility functions
+├── tests/                     # Test code
+│   ├── test_helper.lua        # Test helper
+│   ├── test_database.lua      # Database tests
+│   └── test_health.lua        # Health check tests
+├── static/                    # Static files
 │   ├── css/
 │   ├── js/
 │   └── images/
-├── docker/                    # Docker関連ファイル
+├── wp-content/                # WordPress-compatible content
+│   └── themes/                # Themes directory
+│       └── luwordpress-default/  # Default theme
+├── docker/                    # Docker-related files
 │   └── web/
-│       ├── Dockerfile         # OpenResty + Lapis環境
-│       └── nginx.conf         # Nginx設定
-├── mysql/                     # MySQL関連
+│       ├── Dockerfile         # OpenResty + Lapis environment
+│       └── nginx.conf         # Nginx configuration
+├── mysql/                     # MySQL-related
 │   └── init/
-│       └── 01_create_tables.sql  # データベース初期化スクリプト
-├── Makefile                   # 開発タスク自動化
-├── .luacheckrc               # Luacheck設定
-├── docker-compose.yml         # Docker Compose設定
-├── .env.example              # 環境変数のサンプル
-├── ARCHITECTURE.md           # アーキテクチャ設計書
-└── DESIGN.md                 # 詳細設計書
+│       └── 01_create_tables.sql  # Database initialization script
+├── Makefile                   # Development task automation
+├── .luacheckrc               # Luacheck configuration
+├── docker-compose.yml         # Docker Compose configuration
+├── .env.example              # Environment variable sample
+├── LICENSE                   # MIT License
+├── ARCHITECTURE.md           # Architecture design document
+└── DESIGN.md                 # Detailed design document
 ```
 
-## クイックスタート
+## Quick Start
 
-### 前提条件
+### Prerequisites
 
 - Docker 20.10+
 - Docker Compose 2.0+
-- Make（オプション、推奨）
+- Make (optional, recommended)
 
-### 初期セットアップ（推奨）
+### Initial Setup (Recommended)
 
-Makefileを使った自動セットアップ：
+Automated setup using Makefile:
 
 ```bash
-# リポジトリのクローン
-git clone <repository-url>
-cd LuaAIDiary
+# Clone the repository
+git clone https://github.com/hawkie275/luwordpress.git
+cd luwordpress
 
-# 初期セットアップ（.env作成、ビルド、起動）
+# Initial setup (.env creation, build, startup)
 make setup
 ```
 
-これで以下が自動的に実行されます：
-1. `.env`ファイルの作成
-2. Dockerイメージのビルド
-3. サービスの起動
-4. データベースの初期化
+This automatically executes:
+1. `.env` file creation
+2. Docker image build
+3. Service startup
+4. Database initialization
 
-### 手動セットアップ
+### Manual Setup
 
-Makefileを使わない場合：
+If not using Makefile:
 
 ```bash
-# 1. .envファイルの作成
+# 1. Create .env file
 cp .env.example .env
 
-# 2. Dockerイメージのビルドとサービス起動
+# 2. Build Docker images and start services
 docker-compose up -d --build
 
-# 3. データベースが起動するまで待機（約10秒）
+# 3. Wait for database startup (about 10 seconds)
 sleep 10
 ```
 
-### 動作確認
+### Verification
 
-ブラウザで以下のURLにアクセスします：
+Access the following URL in your browser:
 
 ```
 http://localhost:8080
 ```
 
-ヘルスチェック：
+Health check:
 ```bash
 curl http://localhost:8080/health
-# または
+# or
 make health
 ```
 
-## 開発コマンド（Makefile）
+## Development Commands (Makefile)
 
-プロジェクトには便利なMakefileが用意されています：
+The project includes a convenient Makefile:
 
 ```bash
-# ヘルプを表示
+# Display help
 make help
 
-# 開発サーバー起動（フォアグラウンド）
+# Start development server (foreground)
 make dev
 
-# サービス起動（バックグラウンド）
+# Start services (background)
 make up
 
-# サービス停止
+# Stop services
 make down
 
-# サービス再起動
+# Restart services
 make restart
 
-# ログ表示
-make logs          # すべてのサービス
-make logs-web      # Webサーバーのみ
-make logs-db       # データベースのみ
-make logs-redis    # Redisのみ
+# Display logs
+make logs          # All services
+make logs-web      # Web server only
+make logs-db       # Database only
+make logs-redis    # Redis only
 
-# シェルに接続
-make shell         # Webコンテナ
-make shell-db      # DBコンテナ
-make mysql         # MySQLクライアント
-make redis-cli     # Redisクライアント
+# Connect to shell
+make shell         # Web container
+make shell-db      # DB container
+make mysql         # MySQL client
+make redis-cli     # Redis client
 
-# テスト実行
-make test          # すべてのテスト
+# Run tests
+make test          # All tests
 
-# データベースリセット
+# Reset database
 make db-reset
 
-# 静的解析
+# Static analysis
 make lint
 
-# ヘルスチェック
+# Health check
 make health
 
-# サービス状態確認
+# Check service status
 make status
 
-# クリーンアップ（データ削除）
+# Cleanup (delete data)
 make clean
 ```
 
-## 利用可能なエンドポイント
+## Available Endpoints
 
-| エンドポイント | 説明 | レスポンス |
-|--------------|------|-----------|
-| `GET /` | ホームページ | HTML |
-| `GET /health` | ヘルスチェック | JSON |
-| `GET /api/db-test` | MySQL接続テスト | JSON |
-| `GET /api/redis-test` | Redis接続テスト | JSON |
+| Endpoint | Description | Response |
+|----------|-------------|----------|
+| `GET /` | Homepage | HTML |
+| `GET /:slug` | Single post | HTML |
+| `GET /health` | Health check | JSON |
+| `GET /api/db-test` | MySQL connection test | JSON |
+| `GET /api/redis-test` | Redis connection test | JSON |
 
-### 例：ヘルスチェック
+### Example: Health Check
 
 ```bash
 curl http://localhost:8080/health
 ```
 
-レスポンス例：
+Response example:
 ```json
 {
   "status": "ok",
@@ -193,288 +199,290 @@ curl http://localhost:8080/health
 }
 ```
 
-### 例：データベース接続テスト
+### Example: Database Connection Test
 
 ```bash
 curl http://localhost:8080/api/db-test
 ```
 
-レスポンス例：
+Response example:
 ```json
 {
   "status": "success",
-  "message": "データベース接続成功",
+  "message": "Database connection successful",
   "mysql_version": "8.0.35",
   "host": "db",
-  "database": "LuaAIDiary"
+  "database": "luwordpress"
 }
 ```
 
-## テストの実行
+## Running Tests
 
-### すべてのテストを実行
+### Run all tests
 
 ```bash
 make test
 ```
 
-または
+or
 
 ```bash
 docker-compose exec web busted tests/
 ```
 
-### 特定のテストファイルを実行
+### Run specific test files
 
 ```bash
 make test-file FILE=tests/test_database.lua
 ```
 
-### テストの内容
+### Test Contents
 
-- **test_database.lua**: データベース接続とスキーマのテスト
-- **test_health.lua**: ヘルスチェックエンドポイントのテスト
+- **test_database.lua**: Database connection and schema tests
+- **test_health.lua**: Health check endpoint tests
 
-## データベーススキーマ
+## Database Schema
 
-以下のテーブルが自動的に作成されます：
+The following tables are automatically created:
 
-- **users** - ユーザー情報（認証、権限管理）
-- **posts** - 投稿（記事本文、ステータス）
-- **comments** - コメント（スレッド対応）
-- **categories** - カテゴリー（階層構造対応）
-- **tags** - タグ
-- **post_categories** - 投稿とカテゴリーの多対多関連
-- **post_tags** - 投稿とタグの多対多関連
-- **user_settings** - ユーザー設定（Gemini APIキーなど）
-- **post_meta** - 投稿メタデータ（カスタムフィールド）
+- **users** - User information (authentication, permission management)
+- **posts** - Posts (article content, status)
+- **comments** - Comments (thread support)
+- **categories** - Categories (hierarchical structure support)
+- **tags** - Tags
+- **post_categories** - Many-to-many relationship between posts and categories
+- **post_tags** - Many-to-many relationship between posts and tags
+- **user_settings** - User settings (Gemini API key, etc.)
+- **post_meta** - Post metadata (custom fields)
 
-詳細なスキーマ定義は [`mysql/init/01_create_tables.sql`](mysql/init/01_create_tables.sql) を参照してください。
+For detailed schema definitions, refer to [`mysql/init/01_create_tables.sql`](mysql/init/01_create_tables.sql).
 
-## 開発ワークフロー
+## Development Workflow
 
-### ホットリロード
+### Hot Reload
 
-`app/`ディレクトリのファイルはホストマシンとコンテナ間でマウントされているため、編集すると即座に反映されます。
+Files in the `app/` directory are mounted between the host machine and container, so changes are immediately reflected upon editing.
 
-### コードの静的解析
+### Code Static Analysis
 
 ```bash
 make lint
 ```
 
-Luacheckを使ってコードの品質をチェックします。設定は`.luacheckrc`で管理されています。
+Uses Luacheck to check code quality. Configuration is managed in `.luacheckrc`.
 
-### データベースのリセット
+### Database Reset
 
-開発中にデータベースをクリーンな状態に戻す：
+Reset the database to a clean state during development:
 
 ```bash
 make db-reset
 ```
 
-### ログの監視
+### Log Monitoring
 
-開発中はログを監視しながら作業するのが便利です：
+Monitoring logs during development is convenient:
 
 ```bash
 make logs-web
 ```
 
-## トラブルシューティング
+## Security
 
-### サービスが起動しない
+### Important Settings for Production
+
+**⚠️ You must change the following settings in production:**
+
+1. **Change Database Passwords**
+   ```bash
+   # Change to strong passwords in .env file
+   MYSQL_ROOT_PASSWORD=strong_random_password
+   MYSQL_PASSWORD=strong_random_password
+   ```
+
+2. **Generate Encryption Key**
+   ```bash
+   # Generate a secure 32-byte key
+   openssl rand -hex 32
+   
+   # Set in .env file
+   ENCRYPTION_KEY=generated_key
+   ```
+
+3. **Environment Variable Management**
+   - **Never commit `.env` file to Git**
+   - Verify `.env` is included in `.gitignore`
+   - Manage environment variables securely in production (AWS Secrets Manager, Hashicorp Vault, etc.)
+
+4. **Use HTTPS**
+   - Always configure HTTPS/TLS in production
+   - Free SSL certificates available through Let's Encrypt
+
+### Development Environment Security
+
+Be mindful of the following even in development:
+
+- Default `.env.example` values are for development only
+- Don't use personal information or actual API keys
+- Don't expose database port (3306) externally
+
+## Environment Variables
+
+Environment variables configurable in `.env` file:
 
 ```bash
-# サービスの状態を確認
+# MySQL settings
+MYSQL_ROOT_PASSWORD=change_this_secure_root_password
+MYSQL_DATABASE=luwordpress
+MYSQL_USER=luwordpress
+MYSQL_PASSWORD=change_this_secure_password
+
+# Redis settings
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# Lapis settings
+LAPIS_ENVIRONMENT=development
+
+# Encryption settings (must change!)
+ENCRYPTION_KEY=change_this_to_a_secure_32_byte_key_in_production
+
+# Gemini API settings (optional)
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+For details, refer to [`.env.example`](.env.example).
+
+## Troubleshooting
+
+### Services Won't Start
+
+```bash
+# Check service status
 make status
 
-# ログを確認
+# Check logs
 make logs
 
-# 完全にクリーンアップして再セットアップ
+# Complete cleanup and re-setup
 make clean
 make setup
 ```
 
-### ポートが既に使用されている
+### Ports Already in Use
 
-ポート8080、3306、6379が既に使用されている場合は、`docker-compose.yml`のポート設定を変更してください。
+If ports 8080, 3306, or 6379 are already in use, change the port settings in `docker-compose.yml`.
 
-### データベース接続エラー
+### Database Connection Error
 
 ```bash
-# データベースコンテナの状態確認
+# Check database container status
 docker-compose ps db
 
-# データベースのログ確認
+# Check database logs
 make logs-db
 
-# データベースリセット
+# Reset database
 make db-reset
 ```
 
-### テストが失敗する
+### Tests Fail
 
 ```bash
-# サービスが正常に起動しているか確認
+# Verify services started normally
 make health
 
-# データベース接続テスト
+# Database connection test
 curl http://localhost:8080/api/db-test
 
-# Redis接続テスト
+# Redis connection test
 curl http://localhost:8080/api/redis-test
 ```
 
-### コンテナのビルドエラー
+### Container Build Error
 
 ```bash
-# キャッシュなしで再ビルド
+# Rebuild without cache
 make build
 ```
 
-## セキュリティ
+## Project Structure Details
 
-### 本番環境での重要な設定
+### `/app` - Application Code
 
-**⚠️ 本番環境では必ず以下の設定を変更してください：**
+- **init.lua**: Main entry point of Lapis application
+- **config/**: Configuration such as database connections
+- **controllers/**: Request handlers
+- **models/**: Data models
+- **middleware/**: Middleware for authentication, CSRF protection, etc.
+- **utils/**: Helper functions, validation, etc.
+- **theme_engine/**: WordPress-compatible theme engine
 
-1. **データベースパスワードの変更**
-   ```bash
-   # .envファイルで強力なパスワードに変更
-   MYSQL_ROOT_PASSWORD=強力なランダムパスワード
-   MYSQL_PASSWORD=強力なランダムパスワード
-   ```
+### `/tests` - Test Code
 
-2. **暗号化キーの生成**
-   ```bash
-   # 安全な32バイトキーを生成
-   openssl rand -hex 32
-   
-   # .envファイルに設定
-   ENCRYPTION_KEY=生成されたキー
-   ```
+- **test_helper.lua**: Test helper functions
+- **test_database.lua**: Database connection and schema tests
+- **test_health.lua**: Endpoint tests
 
-3. **環境変数の管理**
-   - `.env`ファイルは**絶対にGitにコミットしない**
-   - `.gitignore`に`.env`が含まれていることを確認
-   - 本番環境では環境変数を安全に管理（AWS Secrets Manager、Hashicorp Vaultなど）
+### `/docker` - Docker-Related
 
-4. **HTTPS の使用**
-   - 本番環境では必ずHTTPS/TLS を設定
-   - Let's Encryptなどで無料のSSL証明書を取得可能
+- **web/Dockerfile**: OpenResty + Lapis + various Lua libraries
+- **web/nginx.conf**: Nginx configuration (Lapis compatible)
 
-### 開発環境のセキュリティ
+## Future Implementation Plans
 
-開発環境でも以下に注意してください：
+### Phase 1: Core System
+- [ ] User authentication & authorization system (bcrypt)
+- [ ] Post CRUD functionality
+- [ ] Session management (Redis)
+- [ ] CSRF protection
 
-- デフォルトの`.env.example`の値は開発専用
-- 個人情報や実際のAPIキーは使用しない
-- データベースポート（3306）を外部に公開しない
+### Phase 2: Theme Compatibility Layer
+- [x] WordPress theme loader
+- [x] WordPress function emulation
+- [x] Template engine integration
 
-## 環境変数
+### Phase 3: Gemini Integration
+- [ ] Gemini API integration
+- [ ] Article composition suggestion feature
+- [ ] API key encryption management
 
-`.env`ファイルで設定可能な環境変数：
+### Phase 4: Admin Panel
+- [ ] Dashboard
+- [ ] Rich text editor
+- [ ] Media upload
 
-```bash
-# MySQL設定
-MYSQL_ROOT_PASSWORD=change_this_secure_root_password
-MYSQL_DATABASE=luaaidiary
-MYSQL_USER=luaaidiary
-MYSQL_PASSWORD=change_this_secure_password
+For detailed implementation plans, refer to [DESIGN.md](DESIGN.md).
 
-# Redis設定
-REDIS_HOST=redis
-REDIS_PORT=6379
+## License
 
-# Lapis設定
-LAPIS_ENVIRONMENT=development
+This project is released under the [MIT License](LICENSE).
 
-# 暗号化設定（必ず変更！）
-ENCRYPTION_KEY=change_this_to_a_secure_32_byte_key_in_production
+### Why MIT License
 
-# Gemini API設定（オプション）
-GEMINI_API_KEY=your_gemini_api_key_here
-```
+1. **High Freedom** - Free for commercial use, modification, and redistribution
+2. **Simple** - Short and easy-to-understand license text
+3. **Widely Adopted** - Most popular in the open-source community
+4. **Compatibility** - Easy to combine with other libraries
 
-詳細は[`.env.example`](.env.example)を参照してください。
+The MIT License allows you to freely use, copy, modify, merge, publish, distribute, sublicense, and sell this software.
 
-## プロジェクト構造の詳細
+## References
 
-### `/app` - アプリケーションコード
+- [OpenResty Official Documentation](https://openresty.org/)
+- [Lapis Official Documentation](https://leafo.net/lapis/)
+- [Lua Official Site](https://www.lua.org/)
+- [MySQL Official Documentation](https://dev.mysql.com/doc/)
+- [Redis Official Documentation](https://redis.io/documentation)
+- [Busted Official Documentation](https://lunarmodules.github.io/busted/)
+- [Docker Official Documentation](https://docs.docker.com/)
 
-- **init.lua**: Lapisアプリケーションのメインエントリーポイント
-- **config/**: データベース接続などの設定
-- **controllers/**: リクエストハンドラー
-- **models/**: データモデル
-- **middleware/**: 認証、CSRF対策などのミドルウェア
-- **utils/**: ヘルパー関数、バリデーションなど
+## Documentation
 
-### `/tests` - テストコード
+- [ARCHITECTURE.md](ARCHITECTURE.md) - System Architecture
+- [DESIGN.md](DESIGN.md) - Detailed Design Document
+- [README_THEME_ENGINE.md](README_THEME_ENGINE.md) - Theme Engine Documentation
 
-- **test_helper.lua**: テスト用ヘルパー関数
-- **test_database.lua**: データベース接続とスキーマのテスト
-- **test_health.lua**: エンドポイントのテスト
+## Contributing
 
-### `/docker` - Docker関連
-
-- **web/Dockerfile**: OpenResty + Lapis + 各種Luaライブラリ
-- **web/nginx.conf**: Nginx設定（Lapis対応）
-
-## 今後の実装予定
-
-### Phase 1: コアシステム
-- [ ] ユーザー認証・認可システム（bcrypt）
-- [ ] 投稿CRUD機能
-- [ ] セッション管理（Redis）
-- [ ] CSRF対策
-
-### Phase 2: テーマ互換レイヤー
-- [ ] WordPressテーマローダー
-- [ ] WordPress関数エミュレーション
-- [ ] テンプレートエンジン統合
-
-### Phase 3: Gemini連携
-- [ ] Gemini API統合
-- [ ] 記事構成提案機能
-- [ ] APIキー暗号化管理
-
-### Phase 4: 管理画面
-- [ ] ダッシュボード
-- [ ] リッチテキストエディタ
-- [ ] メディアアップロード
-
-詳細な実装計画は [DESIGN.md](DESIGN.md) を参照してください。
-
-## ライセンス
-
-このプロジェクトは[MIT License](LICENSE)の下で公開されています。
-
-### MIT Licenseを選んだ理由
-
-1. **自由度が高い** - 商用利用、改変、再配布が自由
-2. **シンプル** - 短く理解しやすいライセンス文
-3. **広く採用** - オープンソースコミュニティで最も人気
-4. **互換性** - 他のライブラリとの組み合わせが容易
-
-MITライセンスにより、このソフトウェアを自由に使用、コピー、変更、マージ、公開、配布、サブライセンス、および販売することができます。
-
-## 参考資料
-
-- [OpenResty公式ドキュメント](https://openresty.org/)
-- [Lapis公式ドキュメント](https://leafo.net/lapis/)
-- [Lua公式サイト](https://www.lua.org/)
-- [MySQL公式ドキュメント](https://dev.mysql.com/doc/)
-- [Redis公式ドキュメント](https://redis.io/documentation)
-- [Busted公式ドキュメント](https://lunarmodules.github.io/busted/)
-- [Docker公式ドキュメント](https://docs.docker.com/)
-
-## ドキュメント
-
-- [ARCHITECTURE.md](ARCHITECTURE.md) - システムアーキテクチャ
-- [DESIGN.md](DESIGN.md) - 詳細設計書
-
-## コントリビューション
-
-プルリクエストを歓迎します。大きな変更の場合は、まずissueを開いて変更内容を議論してください。
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
