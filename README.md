@@ -48,7 +48,7 @@ LuaAIDiary/
 │   └── images/
 ├── wp-content/                # WordPress-compatible content
 │   └── themes/                # Themes directory
-│       └── luwordpress-default/  # Default theme
+│       └── luaaidiary-default/  # Default theme
 ├── docker/                    # Docker-related files
 │   └── web/
 │       ├── Dockerfile         # OpenResty + Lapis environment
@@ -79,8 +79,8 @@ Automated setup using Makefile:
 
 ```bash
 # Clone the repository
-git clone https://github.com/hawkie275/luwordpress.git
-cd luwordpress
+git clone https://github.com/hawkie275/luaaidiary.git
+cd luaaidiary
 
 # Initial setup (.env creation, build, startup)
 make setup
@@ -212,7 +212,7 @@ Response example:
   "message": "Database connection successful",
   "mysql_version": "8.0.35",
   "host": "db",
-  "database": "luwordpress"
+  "database": "luaaidiary"
 }
 ```
 
@@ -333,8 +333,8 @@ Environment variables configurable in `.env` file:
 ```bash
 # MySQL settings
 MYSQL_ROOT_PASSWORD=change_this_secure_root_password
-MYSQL_DATABASE=luwordpress
-MYSQL_USER=luwordpress
+MYSQL_DATABASE=luaaidiary
+MYSQL_USER=luaaidiary
 MYSQL_PASSWORD=change_this_secure_password
 
 # Redis settings
