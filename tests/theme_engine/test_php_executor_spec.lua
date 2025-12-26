@@ -4,7 +4,25 @@ describe("PHP Executor", function()
     local php_executor
     
     setup(function()
+        -- ngxのモック
+        _G.ngx = {
+            log = function() end,
+            ERR = 1,
+            WARN = 2,
+            INFO = 3,
+            var = {},
+            req = {
+                get_method = function() return "GET" end
+            }
+        }
+        
         php_executor = require "theme_engine.php_executor"
+    end)
+    
+    teardown(function()
+        -- モックをクリーンアップ
+        _G.ngx = nil
+        package.loaded["theme_engine.php_executor"] = nil
     end)
     
     describe("PHP変数の展開", function()

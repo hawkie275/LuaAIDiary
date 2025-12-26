@@ -21,6 +21,9 @@ local theme_controller = require("controllers.theme_controller")
 -- 認証コントローラーの初期化
 local auth_controller = require("controllers.auth_controller")
 
+-- 投稿コントローラーの初期化
+local post_controller = require("controllers.post_controller")
+
 -- ========================================
 -- WordPress風URLルーティング
 -- ========================================
@@ -230,18 +233,45 @@ app:match("auth_register", "/api/auth/register", auth_controller.register)
 
 -- ログイン
 app:match("auth_login", "/api/auth/login", auth_controller.login)
+app:post("/api/login", auth_controller.login)  -- エイリアス
 
 -- ログアウト
 app:match("auth_logout", "/api/auth/logout", auth_controller.logout)
 
 -- 現在のユーザー情報取得
 app:match("auth_me", "/api/auth/me", auth_controller.me)
+app:get("/api/me", auth_controller.me)  -- エイリアス
 
 -- パスワード変更
 app:match("auth_change_password", "/api/auth/change-password", auth_controller.change_password)
 
 -- 認証状態チェック
 app:match("auth_check", "/api/auth/check", auth_controller.check)
+
+-- ========================================
+-- 投稿APIエンドポイント
+-- ========================================
+
+-- 投稿一覧取得
+app:get("/api/posts", post_controller.index)
+
+-- 投稿作成
+app:post("/api/posts", post_controller.create)
+
+-- 投稿詳細取得
+app:get("/api/posts/:id", function(self)
+    return post_controller.show(self.params.id)
+end)
+
+-- 投稿更新
+app:put("/api/posts/:id", function(self)
+    return post_controller.update(self.params.id)
+end)
+
+-- 投稿削除
+app:delete("/api/posts/:id", function(self)
+    return post_controller.delete(self.params.id)
+end)
 
 -- 404エラーハンドリング
 app:match("*", function(self)

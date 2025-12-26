@@ -1,4 +1,4 @@
-.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file db-reset lint clean setup-env setup health status
+.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup health status
 
 # Docker Composeコマンド
 DOCKER_COMPOSE := docker compose
@@ -22,7 +22,10 @@ help:
 	@echo "  make shell-db   - DBコンテナのシェルに入る"
 	@echo "  make psql       - PostgreSQLクライアントに接続"
 	@echo "  make redis-cli  - Redisクライアントに接続"
-	@echo "  make test       - テストを実行"
+	@echo "  make test           - ユニットテストを実行（モックベース）"
+	@echo "  make test-integration - 統合テストを実行（実際のDB使用）"
+	@echo "  make test-e2e       - E2Eテストを実行（HTTP経由）"
+	@echo "  make test-all       - すべてのテストを実行"
 	@echo "  make lint       - Luacheckで静的解析を実行"
 	@echo "  make db-reset   - データベースをリセット"
 	@echo "  make clean      - すべてのコンテナとボリュームを削除"
@@ -100,10 +103,37 @@ redis-cli:
 	@echo "📦 Redisクライアントに接続中..."
 	$(DOCKER_COMPOSE) exec redis redis-cli
 
-# テストを実行
+# ユニットテストを実行（モックベース）
 test:
-	@echo "🧪 テストを実行中..."
-	$(DOCKER_COMPOSE) exec -w /app web sh -c "LUA_PATH='/app/?.lua;/app/?/init.lua;;' busted /tests/"
+	@echo "🧪 ユニットテストを実行中..."
+	$(DOCKER_COMPOSE) exec -w /app web sh -c "LUA_PATH='/app/?.lua;/app/?/init.lua;;' busted /tests/ --exclude-tags=integration"
+
+# 統合テストを実行（実際のDB使用）
+test-integration:
+	@echo "🔗 統合テストを実行中（実際のDBを使用）..."
+	@echo "⚠️  注意: このテストは実際のデータベースに接続します"
+	$(DOCKER_COMPOSE) exec -w /app web sh -c "LUA_PATH='/app/?.lua;/app/?/init.lua;;' busted /tests/integration/"
+
+# E2Eテストを実行（HTTP経由）
+test-e2e:
+	@echo "🌐 E2Eテストを実行中（HTTP経由）..."
+	@echo "⚠️  注意: サービスが起動している必要があります"
+	@bash tests/e2e/test_post_api.sh
+
+# すべてのテストを実行
+test-all:
+	@echo "🧪 すべてのテストを実行中..."
+	@echo ""
+	@echo "=== 1. ユニットテスト ==="
+	@make test
+	@echo ""
+	@echo "=== 2. 統合テスト ==="
+	@make test-integration
+	@echo ""
+	@echo "=== 3. E2Eテスト ==="
+	@make test-e2e
+	@echo ""
+	@echo "✅ すべてのテストが完了しました"
 
 # 特定のテストファイルを実行
 test-file:
