@@ -4,7 +4,7 @@ LuaベースのWordPressライクなブログシステム
 
 ## 概要
 
-LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、MySQL、Redisを使用した高性能なブログシステムです。Docker Composeを使用して簡単にセットアップでき、テスト実行しながら開発できる環境を提供します。
+LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、PostgreSQL、Redisを使用した高性能なブログシステムです。Docker Composeを使用して簡単にセットアップでき、テスト実行しながら開発できる環境を提供します。
 
 ## 主な特徴
 
@@ -12,13 +12,13 @@ LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、MySQL、Redisを使用�
 - **軽量**: LuaJITによる高速なスクリプト実行
 - **テスト環境**: Bustedによる自動テスト対応
 - **開発ツール**: Makefile、Luacheckによる開発効率化
-- **スケーラブル**: Redis、MySQLによる水平スケーリング対応
+- **スケーラブル**: Redis、PostgreSQLによる水平スケーリング対応
 - **ホットリロード**: コード変更時の自動反映
 
 ## 技術スタック
 
 - **Webフレームワーク**: Lapis (OpenResty/Nginx + LuaJIT)
-- **データベース**: MySQL 8.0
+- **データベース**: PostgreSQL 15
 - **キャッシュ/セッション**: Redis 7
 - **テストフレームワーク**: Busted
 - **静的解析**: Luacheck
@@ -49,7 +49,7 @@ LuaAIDiary/
 │   └── web/
 │       ├── Dockerfile         # OpenResty + Lapis環境
 │       └── nginx.conf         # Nginx設定
-├── mysql/                     # MySQL関連
+├── postgresql/                # PostgreSQL関連
 │   └── init/
 │       └── 01_create_tables.sql  # データベース初期化スクリプト
 ├── Makefile                   # 開発タスク自動化
@@ -146,7 +146,7 @@ make logs-redis    # Redisのみ
 # シェルに接続
 make shell         # Webコンテナ
 make shell-db      # DBコンテナ
-make mysql         # MySQLクライアント
+make psql          # PostgreSQLクライアント
 make redis-cli     # Redisクライアント
 
 # テスト実行
@@ -174,7 +174,7 @@ make clean
 |--------------|------|-----------|
 | `GET /` | ホームページ | HTML |
 | `GET /health` | ヘルスチェック | JSON |
-| `GET /api/db-test` | MySQL接続テスト | JSON |
+| `GET /api/db-test` | PostgreSQL接続テスト | JSON |
 | `GET /api/redis-test` | Redis接続テスト | JSON |
 
 ### 例：ヘルスチェック
@@ -204,7 +204,7 @@ curl http://localhost:8080/api/db-test
 {
   "status": "success",
   "message": "データベース接続成功",
-  "mysql_version": "8.0.35",
+  "postgres_version": "PostgreSQL 15.x",
   "host": "db",
   "database": "LuaAIDiary"
 }
@@ -249,7 +249,7 @@ make test-file FILE=tests/test_database.lua
 - **user_settings** - ユーザー設定（Gemini APIキーなど）
 - **post_meta** - 投稿メタデータ（カスタムフィールド）
 
-詳細なスキーマ定義は [`mysql/init/01_create_tables.sql`](mysql/init/01_create_tables.sql) を参照してください。
+詳細なスキーマ定義は [`postgresql/init/01_create_tables.sql`](postgresql/init/01_create_tables.sql) を参照してください。
 
 ## 開発ワークフロー
 
@@ -299,7 +299,7 @@ make setup
 
 ### ポートが既に使用されている
 
-ポート8080、3306、6379が既に使用されている場合は、`docker-compose.yml`のポート設定を変更してください。
+ポート8080、5432、6379が既に使用されている場合は、`docker-compose.yml`のポート設定を変更してください。
 
 ### データベース接続エラー
 
@@ -343,8 +343,7 @@ make build
 1. **データベースパスワードの変更**
    ```bash
    # .envファイルで強力なパスワードに変更
-   MYSQL_ROOT_PASSWORD=強力なランダムパスワード
-   MYSQL_PASSWORD=強力なランダムパスワード
+   POSTGRES_PASSWORD=強力なランダムパスワード
    ```
 
 2. **暗号化キーの生成**
@@ -371,18 +370,17 @@ make build
 
 - デフォルトの`.env.example`の値は開発専用
 - 個人情報や実際のAPIキーは使用しない
-- データベースポート（3306）を外部に公開しない
+- データベースポート（5432）を外部に公開しない
 
 ## 環境変数
 
 `.env`ファイルで設定可能な環境変数：
 
 ```bash
-# MySQL設定
-MYSQL_ROOT_PASSWORD=change_this_secure_root_password
-MYSQL_DATABASE=luaaidiary
-MYSQL_USER=luaaidiary
-MYSQL_PASSWORD=change_this_secure_password
+# PostgreSQL設定
+POSTGRES_PASSWORD=change_this_secure_password
+POSTGRES_DB=luaaidiary
+POSTGRES_USER=luaaidiary
 
 # Redis設定
 REDIS_HOST=redis
@@ -465,7 +463,7 @@ MITライセンスにより、このソフトウェアを自由に使用、コ�
 - [OpenResty公式ドキュメント](https://openresty.org/)
 - [Lapis公式ドキュメント](https://leafo.net/lapis/)
 - [Lua公式サイト](https://www.lua.org/)
-- [MySQL公式ドキュメント](https://dev.mysql.com/doc/)
+- [PostgreSQL公式ドキュメント](https://www.postgresql.org/docs/15/)
 - [Redis公式ドキュメント](https://redis.io/documentation)
 - [Busted公式ドキュメント](https://lunarmodules.github.io/busted/)
 - [Docker公式ドキュメント](https://docs.docker.com/)

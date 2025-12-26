@@ -3,21 +3,11 @@ local _M = {}
 
 -- データベース接続のセットアップ
 function _M.setup_db()
-    local mysql = require("resty.mysql")
-    local db = mysql:new()
+    local database = require("app.config.database")
     
-    db:set_timeout(1000)
+    local db, err = database.connect()
     
-    local ok, err = db:connect({
-        host = os.getenv("MYSQL_HOST") or "db",
-        port = tonumber(os.getenv("MYSQL_PORT")) or 3306,
-        database = os.getenv("MYSQL_DATABASE") or "luaaidiary",
-        user = os.getenv("MYSQL_USER") or "luaaidiary",
-        password = os.getenv("MYSQL_PASSWORD") or "luaaidiary_pass",
-        charset = "utf8mb4"
-    })
-    
-    if not ok then
+    if not db then
         error("Failed to connect to database: " .. err)
     end
     
@@ -27,7 +17,8 @@ end
 -- データベース接続のクリーンアップ
 function _M.teardown_db(db)
     if db then
-        db:close()
+        local database = require("app.config.database")
+        database.close(db)
     end
 end
 

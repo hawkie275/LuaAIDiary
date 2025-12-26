@@ -1,4 +1,4 @@
-.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-web shell-db test db-reset clean
+.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file db-reset lint clean setup-env setup health status
 
 # Docker Composeコマンド
 DOCKER_COMPOSE := docker compose
@@ -18,10 +18,17 @@ help:
 	@echo "  make logs-db    - データベースのログを表示"
 	@echo "  make logs-redis - Redisのログを表示"
 	@echo "  make shell      - Webコンテナのシェルに入る"
+	@echo "  make shell-lua  - Webコンテナ内でLuaシェルを起動"
 	@echo "  make shell-db   - DBコンテナのシェルに入る"
+	@echo "  make psql       - PostgreSQLクライアントに接続"
+	@echo "  make redis-cli  - Redisクライアントに接続"
 	@echo "  make test       - テストを実行"
+	@echo "  make lint       - Luacheckで静的解析を実行"
 	@echo "  make db-reset   - データベースをリセット"
 	@echo "  make clean      - すべてのコンテナとボリュームを削除"
+	@echo "  make setup      - 初期セットアップを実行"
+	@echo "  make health     - ヘルスチェックを実行"
+	@echo "  make status     - サービス状態を確認"
 
 # 開発サーバー起動
 dev:
@@ -39,7 +46,7 @@ up:
 	$(DOCKER_COMPOSE) up -d
 	@echo "✅ サービスが起動しました"
 	@echo "   Web: http://localhost:8080"
-	@echo "   MySQL: localhost:3306"
+	@echo "   PostgreSQL: localhost:5432"
 	@echo "   Redis: localhost:6379"
 
 # サービスを停止
@@ -83,10 +90,10 @@ shell-db:
 	@echo "🐚 DBコンテナのシェルに接続中..."
 	$(DOCKER_COMPOSE) exec db /bin/bash
 
-# MySQLクライアントに接続
-mysql:
-	@echo "🗄️  MySQLクライアントに接続中..."
-	$(DOCKER_COMPOSE) exec db mysql -u$(shell grep MYSQL_USER .env | cut -d '=' -f2) -p$(shell grep MYSQL_PASSWORD .env | cut -d '=' -f2) $(shell grep MYSQL_DATABASE .env | cut -d '=' -f2)
+# PostgreSQLクライアントに接続
+psql:
+	@echo "🗄️  PostgreSQLクライアントに接続中..."
+	$(DOCKER_COMPOSE) exec db psql -U $(shell grep POSTGRES_USER .env | cut -d '=' -f2) -d $(shell grep POSTGRES_DB .env | cut -d '=' -f2)
 
 # Redisクライアントに接続
 redis-cli:
@@ -109,8 +116,9 @@ db-reset:
 	@echo "⚠️  警告: すべてのデータが削除されます。続行しますか? [y/N]"
 	@read -r response; \
 	if [ "$$response" = "y" ] || [ "$$response" = "Y" ]; then \
-		$(DOCKER_COMPOSE) exec db mysql -uroot -p$(shell grep MYSQL_ROOT_PASSWORD .env | cut -d '=' -f2) -e "DROP DATABASE IF EXISTS $(shell grep MYSQL_DATABASE .env | cut -d '=' -f2); CREATE DATABASE $(shell grep MYSQL_DATABASE .env | cut -d '=' -f2) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"; \
-		$(DOCKER_COMPOSE) exec db mysql -uroot -p$(shell grep MYSQL_ROOT_PASSWORD .env | cut -d '=' -f2) $(shell grep MYSQL_DATABASE .env | cut -d '=' -f2) < mysql/init/01_create_tables.sql; \
+		$(DOCKER_COMPOSE) exec db psql -U $(shell grep POSTGRES_USER .env | cut -d '=' -f2) -d postgres -c "DROP DATABASE IF EXISTS $(shell grep POSTGRES_DB .env | cut -d '=' -f2);"; \
+		$(DOCKER_COMPOSE) exec db psql -U $(shell grep POSTGRES_USER .env | cut -d '=' -f2) -d postgres -c "CREATE DATABASE $(shell grep POSTGRES_DB .env | cut -d '=' -f2) WITH ENCODING 'UTF8';"; \
+		$(DOCKER_COMPOSE) exec -T db psql -U $(shell grep POSTGRES_USER .env | cut -d '=' -f2) -d $(shell grep POSTGRES_DB .env | cut -d '=' -f2) < postgresql/init/01_create_tables.sql; \
 		echo "✅ データベースをリセットしました"; \
 	else \
 		echo "❌ キャンセルされました"; \

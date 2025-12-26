@@ -2,7 +2,7 @@
 
 ## 概要
 
-本ドキュメントは、Docker Composeを使用してLuaベースのWordPressライクなブログシステムとMySQLデータベースを構成するための設計書です。
+本ドキュメントは、Docker Composeを使用してLuaベースのWordPressライクなブログシステムとPostgreSQLデータベースを構成するための設計書です。
 
 ## システム構成図
 
@@ -11,9 +11,9 @@ graph TB
     Client[クライアント<br/>ブラウザ]
     subgraph Docker環境
         Web[Webサーバー<br/>OpenResty]
-        DB[(MySQL<br/>データベース)]
+        DB[(PostgreSQL<br/>データベース)]
         WebVol[/app ボリューム/]
-        DBVol[/mysql-data ボリューム/]
+        DBVol[/postgresql-data ボリューム/]
     end
     
     Client -->|HTTP:8080| Web
@@ -27,7 +27,7 @@ graph TB
 ### サービス構成
 
 - **web**: OpenRestyベースのWebサーバー (Lua実行環境)
-- **db**: MySQL 8.0データベースサーバー
+- **db**: PostgreSQL 15データベースサーバー
 
 ### ネットワーク
 
@@ -36,7 +36,7 @@ graph TB
 
 ### ボリューム
 
-- `mysql-data`: MySQLデータの永続化用
+- `postgresql-data`: PostgreSQLデータの永続化用
 - `./app`: アプリケーションコード (ホストとコンテナ間で共有)
 - `./nginx`: Nginx設定ファイル
 - `./logs`: アプリケーションログ
@@ -60,11 +60,11 @@ services:
       - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
       - ./logs:/var/log/nginx
     environment:
-      - MYSQL_HOST=db
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=LuaAIDiary
-      - MYSQL_USER=LuaAIDiary_user
-      - MYSQL_PASSWORD=LuaAIDiary_pass
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=LuaAIDiary
+      - POSTGRES_USER=LuaAIDiary_user
+      - POSTGRES_PASSWORD=LuaAIDiary_pass
     depends_on:
       - db
     networks:
@@ -72,31 +72,27 @@ services:
     restart: unless-stopped
 
   db:
-    image: mysql:8.0
+    image: postgres:15-alpine
     container_name: LuaAIDiary-db
     environment:
-      - MYSQL_ROOT_PASSWORD=root_password
-      - MYSQL_DATABASE=LuaAIDiary
-      - MYSQL_USER=LuaAIDiary_user
-      - MYSQL_PASSWORD=LuaAIDiary_pass
-      - MYSQL_CHARACTER_SET_SERVER=utf8mb4
-      - MYSQL_COLLATION_SERVER=utf8mb4_unicode_ci
+      - POSTGRES_PASSWORD=root_password
+      - POSTGRES_DB=LuaAIDiary
+      - POSTGRES_USER=LuaAIDiary_user
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./mysql/init:/docker-entrypoint-initdb.d
+      - postgresql-data:/var/lib/postgresql/data
+      - ./postgresql/init:/docker-entrypoint-initdb.d
     ports:
-      - "3306:3306"
+      - "5432:5432"
     networks:
       - LuaAIDiary-network
     restart: unless-stopped
-    command: --default-authentication-plugin=mysql_native_password
 
 networks:
   LuaAIDiary-network:
     driver: bridge
 
 volumes:
-  mysql-data:
+  postgresql-data:
     driver: local
 ```
 
@@ -117,13 +113,13 @@ RUN apk add --no-cache \
     gcc \
     musl-dev \
     openssl-dev \
-    mysql-client
+    postgresql-client
 
 # LuaRocksのインストール (Luaパッケージマネージャー)
 RUN apk add --no-cache luarocks
 
 # 必要なLuaモジュールのインストール
-RUN luarocks install lua-resty-mysql \
+RUN luarocks install pgmoon \
     && luarocks install lua-resty-template \
     && luarocks install lua-resty-session \
     && luarocks install lua-cjson \
@@ -194,9 +190,9 @@ LuaAIDiary/
 │   └── conf.d/
 │       └── default.conf       # サイト設定
 │
-├── mysql/                     # MySQL関連
+├── postgresql/                # PostgreSQL関連
 │   └── init/                  # 初期化SQLスクリプト
-│       ├── 01_schema.sql      # テーブル定義
+│       ├── 01_create_tables.sql  # テーブル定義
 │       └── 02_seed.sql        # 初期データ
 │
 └── logs/                      # ログファイル
@@ -285,110 +281,144 @@ server {
 }
 ```
 
-## 6. MySQL設定
+## 6. PostgreSQL設定
 
 ### バージョン
 
-- MySQL 8.0 (最新の安定版)
+- PostgreSQL 15 (高度なSQL機能、JSONB型、GINインデックス対応)
 
 ### 環境変数
 
 | 変数名 | 値 | 説明 |
 |--------|-----|------|
-| MYSQL_ROOT_PASSWORD | root_password | rootユーザーのパスワード |
-| MYSQL_DATABASE | LuaAIDiary | 初期データベース名 |
-| MYSQL_USER | LuaAIDiary_user | アプリケーション用ユーザー |
-| MYSQL_PASSWORD | LuaAIDiary_pass | アプリケーション用パスワード |
-| MYSQL_CHARACTER_SET_SERVER | utf8mb4 | 文字セット |
-| MYSQL_COLLATION_SERVER | utf8mb4_unicode_ci | 照合順序 |
+| POSTGRES_PASSWORD | root_password | PostgreSQLのパスワード |
+| POSTGRES_DB | LuaAIDiary | 初期データベース名 |
+| POSTGRES_USER | LuaAIDiary_user | アプリケーション用ユーザー |
 
-### 初期化スクリプト (01_schema.sql)
+### 初期化スクリプト (01_create_tables.sql)
 
 ```sql
+-- ENUM型の定義
+CREATE TYPE user_role AS ENUM ('admin', 'editor', 'author', 'subscriber');
+CREATE TYPE post_status AS ENUM ('draft', 'published', 'trash');
+CREATE TYPE comment_status AS ENUM ('pending', 'approved', 'spam', 'trash');
+
+-- updated_atの自動更新トリガー関数
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- ユーザーテーブル
 CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(100),
-    role ENUM('admin', 'editor', 'author', 'subscriber') DEFAULT 'subscriber',
+    role user_role DEFAULT 'subscriber',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_username (username),
-    INDEX idx_email (email)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
 
 -- 投稿テーブル
 CREATE TABLE IF NOT EXISTS posts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     content TEXT,
     excerpt TEXT,
-    author_id INT NOT NULL,
-    status ENUM('draft', 'published', 'trash') DEFAULT 'draft',
+    author_id INTEGER NOT NULL,
+    status post_status DEFAULT 'draft',
     published_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_slug (slug),
-    INDEX idx_status (status),
-    INDEX idx_published_at (published_at),
-    INDEX idx_author_id (author_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TRIGGER update_posts_updated_at
+    BEFORE UPDATE ON posts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX idx_posts_slug ON posts(slug);
+CREATE INDEX idx_posts_status ON posts(status);
+CREATE INDEX idx_posts_published_at ON posts(published_at);
+CREATE INDEX idx_posts_author_id ON posts(author_id);
+
+-- 全文検索用GINインデックス
+CREATE INDEX idx_posts_search ON posts USING GIN(to_tsvector('english', title || ' ' || COALESCE(content, '')));
 
 -- コメントテーブル
 CREATE TABLE IF NOT EXISTS comments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    post_id INT NOT NULL,
+    id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL,
     author_name VARCHAR(100) NOT NULL,
     author_email VARCHAR(100) NOT NULL,
     content TEXT NOT NULL,
-    status ENUM('pending', 'approved', 'spam', 'trash') DEFAULT 'pending',
+    status comment_status DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-    INDEX idx_post_id (post_id),
-    INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+);
+
+CREATE TRIGGER update_comments_updated_at
+    BEFORE UPDATE ON comments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX idx_comments_post_id ON comments(post_id);
+CREATE INDEX idx_comments_status ON comments(status);
 
 -- カテゴリーテーブル
 CREATE TABLE IF NOT EXISTS categories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_slug (slug)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_categories_slug ON categories(slug);
 
 -- 投稿とカテゴリーの中間テーブル
 CREATE TABLE IF NOT EXISTS post_categories (
-    post_id INT NOT NULL,
-    category_id INT NOT NULL,
+    post_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
     PRIMARY KEY (post_id, category_id),
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 
 -- タグテーブル
 CREATE TABLE IF NOT EXISTS tags (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     slug VARCHAR(50) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_slug (slug)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_tags_slug ON tags(slug);
 
 -- 投稿とタグの中間テーブル
 CREATE TABLE IF NOT EXISTS post_tags (
-    post_id INT NOT NULL,
-    tag_id INT NOT NULL,
+    post_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
     PRIMARY KEY (post_id, tag_id),
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 ```
 
 ## 7. ポート設定とネットワーク構成
@@ -398,19 +428,19 @@ CREATE TABLE IF NOT EXISTS post_tags (
 | サービス | コンテナポート | ホストポート | 用途 |
 |----------|----------------|--------------|------|
 | web | 80 | 8080 | HTTP通信 |
-| db | 3306 | 3306 | MySQL接続 (開発用) |
+| db | 5432 | 5432 | PostgreSQL接続 (開発用) |
 
 ### ネットワーク構成
 
 - **ネットワーク名**: `LuaAIDiary-network`
 - **ドライバー**: bridge
-- **サービス間通信**: 
-  - Webコンテナからデータベースへの接続: `db:3306`
+- **サービス間通信**:
+  - Webコンテナからデータベースへの接続: `db:5432`
   - 内部DNS名でサービス名を使用
 
 ### セキュリティ考慮事項
 
-- 本番環境ではMySQLの3306ポートを外部公開しない
+- 本番環境ではPostgreSQLの5432ポートを外部公開しない
 - 環境変数は`.env`ファイルで管理し、`.gitignore`に追加
 - パスワードは強固なものに変更
 
@@ -422,7 +452,7 @@ CREATE TABLE IF NOT EXISTS post_tags (
 2. `Dockerfile` - Webサーバー用コンテナイメージ
 3. `nginx/nginx.conf` - Nginxメイン設定
 4. `nginx/conf.d/default.conf` - サイト別設定
-5. `mysql/init/01_schema.sql` - データベーススキーマ定義
+5. `postgresql/init/01_create_tables.sql` - データベーススキーマ定義
 6. `.env` - 環境変数設定 (任意)
 7. `.gitignore` - Gitで管理しないファイルの指定
 
@@ -464,7 +494,7 @@ docker-compose start
 docker-compose restart web
 
 # データベースへの接続
-docker-compose exec db mysql -u LuaAIDiary_user -p LuaAIDiary
+docker-compose exec db psql -U LuaAIDiary_user -d LuaAIDiary
 
 # Webコンテナへの接続
 docker-compose exec web sh
@@ -477,38 +507,36 @@ docker-compose logs -f web
 
 ```bash
 # バックアップ
-docker-compose exec db mysqldump -u root -p LuaAIDiary > backup.sql
+docker-compose exec db pg_dump -U LuaAIDiary_user LuaAIDiary > backup.sql
 
 # リストア
-docker-compose exec -T db mysql -u root -p LuaAIDiary < backup.sql
+docker-compose exec -T db psql -U LuaAIDiary_user LuaAIDiary < backup.sql
 ```
 
 ## 10. 各サービス間の連携方法
 
-### WebコンテナからMySQLへの接続
+### WebコンテナからPostgreSQLへの接続
 
 Luaコード内でのデータベース接続例:
 
 ```lua
-local mysql = require "resty.mysql"
+local pgmoon = require "pgmoon"
 
-local db = mysql:new()
-db:set_timeout(1000)
-
-local ok, err, errcode, sqlstate = db:connect({
-    host = os.getenv("MYSQL_HOST") or "db",
-    port = tonumber(os.getenv("MYSQL_PORT")) or 3306,
-    database = os.getenv("MYSQL_DATABASE") or "LuaAIDiary",
-    user = os.getenv("MYSQL_USER") or "LuaAIDiary_user",
-    password = os.getenv("MYSQL_PASSWORD") or "LuaAIDiary_pass",
-    charset = "utf8mb4",
-    max_packet_size = 1024 * 1024
+local pg = pgmoon.new({
+    host = os.getenv("POSTGRES_HOST") or "db",
+    port = tonumber(os.getenv("POSTGRES_PORT")) or 5432,
+    database = os.getenv("POSTGRES_DB") or "LuaAIDiary",
+    user = os.getenv("POSTGRES_USER") or "LuaAIDiary_user",
+    password = os.getenv("POSTGRES_PASSWORD") or "LuaAIDiary_pass"
 })
 
-if not ok then
-    ngx.log(ngx.ERR, "failed to connect: ", err, ": ", errcode, " ", sqlstate)
-    return nil
-end
+assert(pg:connect())
+
+-- クエリの実行例
+local result = pg:query("SELECT * FROM users LIMIT 10")
+
+-- 接続を閉じる
+pg:keepalive(10000, 100)
 ```
 
 ### 環境変数の受け渡し
@@ -557,4 +585,4 @@ end
 
 ## まとめ
 
-本設計書は、Docker Composeを使用してLuaベースのWordPressライクなブログシステムを構築するための包括的なアーキテクチャを提供します。OpenRestyとMySQLの組み合わせにより、高性能で拡張性のあるシステムを実現できます。
+本設計書は、Docker Composeを使用してLuaベースのWordPressライクなブログシステムを構築するための包括的なアーキテクチャを提供します。OpenRestyとPostgreSQLの組み合わせにより、高性能で拡張性のあるシステムを実現できます。PostgreSQLの高度な機能（JSONB型、GINインデックス、全文検索など）により、柔軟で強力なデータ管理が可能です。

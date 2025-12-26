@@ -198,7 +198,7 @@ make test
 - **言語**: Lua
 - **Webフレームワーク**: Lapis (OpenResty)
 - **テンプレート**: PHP互換エミュレーション
-- **データベース**: MySQL 8.0
+- **データベース**: PostgreSQL 15
 - **テスト**: Busted
 
 ## まとめ
