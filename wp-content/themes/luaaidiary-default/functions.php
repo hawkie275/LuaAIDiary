@@ -1,10 +1,10 @@
 <?php
 /**
- * LuWordPress Default Theme Functions
+ * LuaAIDiary Default Theme Functions
  */
 
 // テーマサポート機能を追加
-function luwordpress_default_setup() {
+function luaaidiary_default_setup() {
     // タイトルタグのサポート
     add_theme_support('title-tag');
     
@@ -25,4 +25,4 @@ function luwordpress_default_setup() {
 }
 
 // テーマのセットアップをフックに登録（Lua環境では実際には実行されない）
-// add_action('after_setup_theme', 'luwordpress_default_setup');
+// add_action('after_setup_theme', 'luaaidiary_default_setup');

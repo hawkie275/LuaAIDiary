@@ -2,7 +2,7 @@
 
 ## 実装概要
 
-LuWordPress用のWordPressテーマ互換レイヤーを実装しました。既存のWordPressテーマをそのまま使用できるように、PHPテンプレートエンジンとWordPress関数のエミュレーション層を構築しました。
+LuaAIDiary用のWordPressテーマ互換レイヤーを実装しました。既存のWordPressテーマをそのまま使用できるように、PHPテンプレートエンジンとWordPress関数のエミュレーション層を構築しました。
 
 ## 実装済みコンポーネント
 
@@ -87,7 +87,7 @@ LuWordPress用のWordPressテーマ互換レイヤーを実装しました。既
 
 ### 6. サンプルテーマ
 
-#### `/wp-content/themes/luwordpress-default/`
+#### `/wp-content/themes/luaaidiary-default/`
 動作確認用のシンプルなテーマを実装:
 - `style.css` - テーマメタデータとスタイル定義
 - `index.php` - メインテンプレート（投稿一覧）
@@ -190,7 +190,7 @@ make test
 - `/app/theme_engine/theme_config.lua` - テーマ設定
 - `/app/theme_engine/asset_loader.lua` - アセット管理
 - `/app/controllers/theme_controller.lua` - テーマコントローラー
-- `/wp-content/themes/luwordpress-default/*` - サンプルテーマ
+- `/wp-content/themes/luaaidiary-default/*` - サンプルテーマ
 - `/tests/theme_engine/test_php_executor_spec.lua` - テスト
 
 ## 技術スタック
@@ -203,6 +203,6 @@ make test
 
 ## まとめ
 
-WordPressテーマ互換レイヤーの実装により、既存のWordPressテーマをLuWordPressで使用できる基盤が整いました。主要なWordPress関数とテンプレート階層を実装し、サンプルテーマで動作確認が可能です。
+WordPressテーマ互換レイヤーの実装により、既存のWordPressテーマをLuaAIDiaryで使用できる基盤が整いました。主要なWordPress関数とテンプレート階層を実装し、サンプルテーマで動作確認が可能です。
 
 今後は実際のWordPressテーマでのテストを行い、不足している機能を追加していく必要があります。

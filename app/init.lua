@@ -1,4 +1,4 @@
--- LuWordPress アプリケーション初期化
+-- LuaAIDiary アプリケーション初期化
 local lapis = require("lapis")
 local app = lapis.Application()
 
@@ -100,7 +100,7 @@ app:get("/health", function(self)
     return {
         json = {
             status = "ok",
-            service = "LuWordPress",
+            service = "LuaAIDiary",
             version = "0.1.0",
             timestamp = os.time()
         }

@@ -127,7 +127,7 @@ end
 
 -- アクティブテーマを取得
 function _M.get_active_theme()
-    return _M.get_theme_option("system", "active_theme", "luwordpress-default")
+    return _M.get_theme_option("system", "active_theme", "luaaidiary-default")
 end
 
 -- テーマがインストールされているか確認

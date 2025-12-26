@@ -96,7 +96,7 @@ Makefileを使わない場合：
 cp .env.example .env
 
 # 2. Dockerイメージのビルドとサービス起動
-docker-compose up -d --build
+docker compose up -d --build
 
 # 3. データベースが起動するまで待機（約10秒）
 sleep 10
@@ -221,7 +221,7 @@ make test
 または
 
 ```bash
-docker-compose exec web busted tests/
+docker compose exec web busted tests/
 ```
 
 ### 特定のテストファイルを実行
@@ -305,7 +305,7 @@ make setup
 
 ```bash
 # データベースコンテナの状態確認
-docker-compose ps db
+docker compose ps db
 
 # データベースのログ確認
 make logs-db

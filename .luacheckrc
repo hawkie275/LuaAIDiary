@@ -1,4 +1,4 @@
--- Luacheck configuration for LuWordPress
+-- Luacheck configuration for LuaAIDiary
 
 -- グローバル変数の設定
 std = "ngx_lua"

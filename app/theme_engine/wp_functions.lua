@@ -346,7 +346,7 @@ function _M.get_bloginfo(show)
     show = show or "name"
     
     local info = {
-        name = "LuWordPress",
+        name = "LuaAIDiary",
         description = "Lua製高性能ブログシステム",
         url = _M.home_url(),
         charset = "UTF-8",

@@ -1,4 +1,4 @@
--- LuWordPress データベース初期化スクリプト
+-- LuaAIDiary データベース初期化スクリプト
 -- このスクリプトはMySQLコンテナの起動時に自動実行されます
 
 -- ユーザーテーブル
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS post_meta (
 -- 初期データの挿入（テスト用）
 -- デフォルト管理者ユーザー（パスワード: admin123 のハッシュ値は実装時に生成）
 INSERT INTO users (username, email, password_hash, display_name, role)
-VALUES ('admin', 'admin@luwordpress.local', 'temporary_hash', 'Administrator', 'admin')
+VALUES ('admin', 'admin@luaaidiary.local', 'temporary_hash', 'Administrator', 'admin')
 ON DUPLICATE KEY UPDATE username=username;
 
 -- デフォルトカテゴリー

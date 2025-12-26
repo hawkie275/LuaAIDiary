@@ -5,7 +5,7 @@ services:
     build:
       context: ./docker/web
       dockerfile: Dockerfile
-    container_name: luwordpress-web
+    container_name: luaaidiary-web
     ports:
       - "8080:80"
     volumes:
@@ -28,12 +28,12 @@ services:
       - db
       - redis
     networks:
-      - luwordpress-network
+      - luaaidiary-network
     restart: unless-stopped
 
   db:
     image: mysql:8.0
-    container_name: luwordpress-db
+    container_name: luaaidiary-db
     command: --default-authentication-plugin=mysql_native_password
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
@@ -46,7 +46,7 @@ services:
     ports:
       - "3306:3306"
     networks:
-      - luwordpress-network
+      - luaaidiary-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
@@ -55,13 +55,13 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: luwordpress-redis
+    container_name: luaaidiary-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - luwordpress-network
+      - luaaidiary-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -70,7 +70,7 @@ services:
       retries: 3
 
 networks:
-  luwordpress-network:
+  luaaidiary-network:
     driver: bridge
 
 volumes:
