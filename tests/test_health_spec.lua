@@ -84,12 +84,12 @@ describe("Database Test Endpoint", function()
         assert.equals("success", data.status)
     end)
     
-    it("should return MySQL version", function()
+    it("should return PostgreSQL version", function()
         local body, code = http_get("http://localhost/api/db-test")
         assert.equals(200, code)
         
         local data = cjson.decode(body)
-        assert.is_not_nil(data.mysql_version)
+        assert.is_not_nil(data.postgres_version)
     end)
     
     it("should return database name", function()

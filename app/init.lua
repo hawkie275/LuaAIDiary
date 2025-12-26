@@ -108,19 +108,11 @@ app:get("/health", function(self)
 end)
 
 app:get("/api/db-test", function(self)
-    local mysql = require("resty.mysql")
-    local db = mysql:new()
+    local database = require("config.database")
     
-    local ok, err = db:connect({
-        host = os.getenv("MYSQL_HOST"),
-        port = tonumber(os.getenv("MYSQL_PORT")),
-        database = os.getenv("MYSQL_DATABASE"),
-        user = os.getenv("MYSQL_USER"),
-        password = os.getenv("MYSQL_PASSWORD"),
-        charset = "utf8mb4"
-    })
+    local db, err = database.connect()
     
-    if not ok then
+    if not db then
         self.res.headers["Content-Type"] = "application/json"
         return {
             json = {
@@ -131,10 +123,10 @@ app:get("/api/db-test", function(self)
         }
     end
     
-    local res, err = db:query("SELECT VERSION() as version")
-    db:close()
+    local res, err = db:query("SELECT version() as version")
     
     if not res then
+        database.close(db)
         self.res.headers["Content-Type"] = "application/json"
         return {
             json = {
@@ -145,14 +137,16 @@ app:get("/api/db-test", function(self)
         }
     end
     
+    database.close(db)
+    
     self.res.headers["Content-Type"] = "application/json"
     return {
         json = {
             status = "success",
             message = "データベース接続成功",
-            mysql_version = res[1].version,
-            database = os.getenv("MYSQL_DATABASE"),
-            host = os.getenv("MYSQL_HOST")
+            postgres_version = res[1].version,
+            database = os.getenv("POSTGRES_DB"),
+            host = os.getenv("POSTGRES_HOST")
         }
     }
 end)

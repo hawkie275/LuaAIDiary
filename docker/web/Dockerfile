@@ -8,9 +8,8 @@ RUN apk add --no-cache \
     make \
     musl-dev \
     openssl-dev \
-    mysql-client \
-    mysql-dev \
     postgresql-dev \
+    postgresql-client \
     lua5.1 \
     lua5.1-dev \
     luarocks5.1 \
@@ -18,7 +17,6 @@ RUN apk add --no-cache \
 
 # 必要なLuaモジュールのインストール
 RUN luarocks-5.1 install lapis \
-    && luarocks-5.1 install lua-resty-mysql \
     && luarocks-5.1 install lua-resty-redis \
     && luarocks-5.1 install lua-resty-http \
     && luarocks-5.1 install lua-cjson \

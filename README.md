@@ -4,7 +4,7 @@ A Lua-based WordPress-like blog system
 
 ## Overview
 
-LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJIT), Lapis, MySQL, and Redis. It provides an easy setup using Docker Compose and a development environment that allows testing during development.
+LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJIT), Lapis, PostgreSQL, and Redis. It provides an easy setup using Docker Compose and a development environment that allows testing during development.
 
 ## Key Features
 
@@ -12,13 +12,13 @@ LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJI
 - **Lightweight**: Fast script execution with LuaJIT
 - **Test Environment**: Automated testing support with Busted
 - **Developer Tools**: Enhanced development efficiency with Makefile and Luacheck
-- **Scalable**: Horizontal scaling with Redis and MySQL
+- **Scalable**: Horizontal scaling with Redis and PostgreSQL
 - **Hot Reload**: Automatic reflection of code changes
 
 ## Tech Stack
 
 - **Web Framework**: Lapis (OpenResty/Nginx + LuaJIT)
-- **Database**: MySQL 8.0
+- **Database**: PostgreSQL 15
 - **Cache/Session**: Redis 7
 - **Test Framework**: Busted
 - **Static Analysis**: Luacheck
@@ -53,7 +53,7 @@ LuaAIDiary/
 │   └── web/
 │       ├── Dockerfile         # OpenResty + Lapis environment
 │       └── nginx.conf         # Nginx configuration
-├── mysql/                     # MySQL-related
+├── postgresql/                # PostgreSQL-related
 │   └── init/
 │       └── 01_create_tables.sql  # Database initialization script
 ├── Makefile                   # Development task automation
@@ -151,7 +151,7 @@ make logs-redis    # Redis only
 # Connect to shell
 make shell         # Web container
 make shell-db      # DB container
-make mysql         # MySQL client
+make psql          # PostgreSQL client
 make redis-cli     # Redis client
 
 # Run tests
@@ -180,7 +180,7 @@ make clean
 | `GET /` | Homepage | HTML |
 | `GET /:slug` | Single post | HTML |
 | `GET /health` | Health check | JSON |
-| `GET /api/db-test` | MySQL connection test | JSON |
+| `GET /api/db-test` | PostgreSQL connection test | JSON |
 | `GET /api/redis-test` | Redis connection test | JSON |
 
 ### Example: Health Check
@@ -210,7 +210,7 @@ Response example:
 {
   "status": "success",
   "message": "Database connection successful",
-  "mysql_version": "8.0.35",
+  "postgres_version": "PostgreSQL 15.x",
   "host": "db",
   "database": "luaaidiary"
 }
@@ -255,7 +255,7 @@ The following tables are automatically created:
 - **user_settings** - User settings (Gemini API key, etc.)
 - **post_meta** - Post metadata (custom fields)
 
-For detailed schema definitions, refer to [`mysql/init/01_create_tables.sql`](mysql/init/01_create_tables.sql).
+For detailed schema definitions, refer to [`postgresql/init/01_create_tables.sql`](postgresql/init/01_create_tables.sql).
 
 ## Development Workflow
 
@@ -296,8 +296,7 @@ make logs-web
 1. **Change Database Passwords**
    ```bash
    # Change to strong passwords in .env file
-   MYSQL_ROOT_PASSWORD=strong_random_password
-   MYSQL_PASSWORD=strong_random_password
+   POSTGRES_PASSWORD=strong_random_password
    ```
 
 2. **Generate Encryption Key**
@@ -324,18 +323,17 @@ Be mindful of the following even in development:
 
 - Default `.env.example` values are for development only
 - Don't use personal information or actual API keys
-- Don't expose database port (3306) externally
+- Don't expose database port (5432) externally
 
 ## Environment Variables
 
 Environment variables configurable in `.env` file:
 
 ```bash
-# MySQL settings
-MYSQL_ROOT_PASSWORD=change_this_secure_root_password
-MYSQL_DATABASE=luaaidiary
-MYSQL_USER=luaaidiary
-MYSQL_PASSWORD=change_this_secure_password
+# PostgreSQL settings
+POSTGRES_PASSWORD=change_this_secure_password
+POSTGRES_DB=luaaidiary
+POSTGRES_USER=luaaidiary
 
 # Redis settings
 REDIS_HOST=redis
@@ -371,7 +369,7 @@ make setup
 
 ### Ports Already in Use
 
-If ports 8080, 3306, or 6379 are already in use, change the port settings in `docker-compose.yml`.
+If ports 8080, 5432, or 6379 are already in use, change the port settings in `docker-compose.yml`.
 
 ### Database Connection Error
 
@@ -472,7 +470,7 @@ The MIT License allows you to freely use, copy, modify, merge, publish, distribu
 - [OpenResty Official Documentation](https://openresty.org/)
 - [Lapis Official Documentation](https://leafo.net/lapis/)
 - [Lua Official Site](https://www.lua.org/)
-- [MySQL Official Documentation](https://dev.mysql.com/doc/)
+- [PostgreSQL Official Documentation](https://www.postgresql.org/docs/15/)
 - [Redis Official Documentation](https://redis.io/documentation)
 - [Busted Official Documentation](https://lunarmodules.github.io/busted/)
 - [Docker Official Documentation](https://docs.docker.com/)

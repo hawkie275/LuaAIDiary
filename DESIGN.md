@@ -28,7 +28,7 @@ LuaAIDiaryは、Lua製のWordPressライクな高性能ブログシステムで�
 | 技術 | 選定理由 |
 |------|----------|
 | OpenResty | NginxにLuaJITを統合し、高性能な非同期処理を実現 |
-| MySQL 8.0 | 実績豊富なRDBMS、UTF8MB4完全対応 |
+| PostgreSQL 15 | 高度なSQL機能、JSONB型、GINインデックス、豊富な拡張機能に対応 |
 | Lapis | Lua用軽量Webフレームワーク（オプション） |
 | lua-resty-template | テンプレートエンジン |
 | lua-resty-session | セッション管理 |
@@ -53,7 +53,7 @@ graph TB
     
     subgraph Docker環境
         Web[Webサーバー<br/>OpenResty]
-        DB[(MySQL<br/>データベース)]
+        DB[(PostgreSQL<br/>データベース)]
         Redis[(Redis<br/>キャッシュ)]
     end
     
@@ -86,7 +86,7 @@ graph TD
     C2[クエリビルダー] --> C
     C3[キャッシュ] --> C
     
-    D1[MySQL] --> D
+    D1[PostgreSQL] --> D
     D2[Redis] --> D
     D3[ファイルストレージ] --> D
 ```
@@ -266,20 +266,38 @@ erDiagram
 #### 3.2.1 usersテーブル
 
 ```sql
+-- ENUM型の定義
+CREATE TYPE user_role AS ENUM ('admin', 'editor', 'author', 'subscriber');
+
 CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(100),
-    role ENUM('admin', 'editor', 'author', 'subscriber') DEFAULT 'subscriber',
+    role user_role DEFAULT 'subscriber',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    INDEX idx_username (username),
-    INDEX idx_email (email),
-    INDEX idx_role (role)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- updated_atの自動更新トリガー
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- インデックス
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
 ```
 
 **フィールド説明:**
@@ -293,25 +311,38 @@ CREATE TABLE users (
 #### 3.2.2 postsテーブル
 
 ```sql
+-- ENUM型の定義
+CREATE TYPE post_status AS ENUM ('draft', 'published', 'trash');
+
 CREATE TABLE posts (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
-    content LONGTEXT,
+    content TEXT,
     excerpt TEXT,
-    author_id INT NOT NULL,
-    status ENUM('draft', 'published', 'trash') DEFAULT 'draft',
+    author_id INTEGER NOT NULL,
+    status post_status DEFAULT 'draft',
     published_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_slug (slug),
-    INDEX idx_status (status),
-    INDEX idx_published_at (published_at),
-    INDEX idx_author_id (author_id),
-    FULLTEXT idx_title_content (title, content)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- updated_atの自動更新トリガー
+CREATE TRIGGER update_posts_updated_at
+    BEFORE UPDATE ON posts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- インデックス
+CREATE INDEX idx_posts_slug ON posts(slug);
+CREATE INDEX idx_posts_status ON posts(status);
+CREATE INDEX idx_posts_published_at ON posts(published_at);
+CREATE INDEX idx_posts_author_id ON posts(author_id);
+
+-- 全文検索用GINインデックス
+CREATE INDEX idx_posts_title_content ON posts USING GIN(to_tsvector('english', title || ' ' || COALESCE(content, '')));
 ```
 
 **フィールド説明:**
@@ -323,25 +354,36 @@ CREATE TABLE posts (
 #### 3.2.3 commentsテーブル
 
 ```sql
+-- ENUM型の定義
+CREATE TYPE comment_status AS ENUM ('pending', 'approved', 'spam', 'trash');
+
 CREATE TABLE comments (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    post_id INT NOT NULL,
-    user_id INT NULL,
+    id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL,
+    user_id INTEGER NULL,
     author_name VARCHAR(100) NOT NULL,
     author_email VARCHAR(100) NOT NULL,
     content TEXT NOT NULL,
-    status ENUM('pending', 'approved', 'spam', 'trash') DEFAULT 'pending',
-    parent_id INT NULL,
+    status comment_status DEFAULT 'pending',
+    parent_id INTEGER NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE,
-    INDEX idx_post_id (post_id),
-    INDEX idx_status (status),
-    INDEX idx_parent_id (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
+);
+
+-- updated_atの自動更新トリガー
+CREATE TRIGGER update_comments_updated_at
+    BEFORE UPDATE ON comments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- インデックス
+CREATE INDEX idx_comments_post_id ON comments(post_id);
+CREATE INDEX idx_comments_status ON comments(status);
+CREATE INDEX idx_comments_parent_id ON comments(parent_id);
 ```
 
 **フィールド説明:**
@@ -353,47 +395,61 @@ CREATE TABLE comments (
 
 ```sql
 CREATE TABLE categories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
     description TEXT,
-    parent_id INT NULL,
+    parent_id INTEGER NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    INDEX idx_slug (slug),
     FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
+
+-- インデックス
+CREATE INDEX idx_categories_slug ON categories(slug);
 ```
 
 #### 3.2.5 tagsテーブル
 
 ```sql
 CREATE TABLE tags (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     slug VARCHAR(50) UNIQUE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_slug (slug),
-    INDEX idx_name (name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- インデックス
+CREATE INDEX idx_tags_slug ON tags(slug);
+CREATE INDEX idx_tags_name ON tags(name);
 ```
 
 #### 3.2.6 user_settingsテーブル
 
 ```sql
 CREATE TABLE user_settings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT UNIQUE NOT NULL,
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL,
     gemini_api_key VARCHAR(255) NULL,
     gemini_model VARCHAR(50) DEFAULT 'gemini-1.5-pro',
-    preferences JSON,
+    preferences JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user_id (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- updated_atの自動更新トリガー
+CREATE TRIGGER update_user_settings_updated_at
+    BEFORE UPDATE ON user_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- インデックス
+CREATE INDEX idx_user_settings_user_id ON user_settings(user_id);
+
+-- JSONB用GINインデックス（高速なJSONクエリのため）
+CREATE INDEX idx_user_settings_preferences ON user_settings USING GIN(preferences);
 ```
 
 **フィールド説明:**
@@ -405,24 +461,24 @@ CREATE TABLE user_settings (
 
 ```sql
 CREATE TABLE post_categories (
-    post_id INT NOT NULL,
-    category_id INT NOT NULL,
+    post_id INTEGER NOT NULL,
+    category_id INTEGER NOT NULL,
     PRIMARY KEY (post_id, category_id),
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 ```
 
 #### 3.2.8 post_tagsテーブル（中間テーブル）
 
 ```sql
 CREATE TABLE post_tags (
-    post_id INT NOT NULL,
-    tag_id INT NOT NULL,
+    post_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
     PRIMARY KEY (post_id, tag_id),
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+);
 ```
 
 ### 3.3 インデックス戦略
@@ -433,27 +489,32 @@ CREATE TABLE post_tags (
 2. **一意制約インデックス**: username, email, slug
 3. **外部キーインデックス**: リレーション高速化
 4. **検索用インデックス**: status, published_at
-5. **全文検索インデックス**: title, content（FULLTEXT）
+5. **全文検索インデックス**: title, content（GINインデックス）
+6. **JSONB用GINインデックス**: preferences（高速なJSONクエリ）
 
 #### インデックス使用例
 
 ```sql
--- 公開記事の取得（idx_status, idx_published_atを使用）
-SELECT * FROM posts 
-WHERE status = 'published' 
-ORDER BY published_at DESC 
+-- 公開記事の取得（idx_posts_status, idx_posts_published_atを使用）
+SELECT * FROM posts
+WHERE status = 'published'
+ORDER BY published_at DESC
 LIMIT 10;
 
--- ユーザーの記事取得（idx_author_idを使用）
-SELECT * FROM posts 
+-- ユーザーの記事取得（idx_posts_author_idを使用）
+SELECT * FROM posts
 WHERE author_id = 1 AND status = 'published';
 
--- スラッグ検索（idx_slugを使用）
+-- スラッグ検索（idx_posts_slugを使用）
 SELECT * FROM posts WHERE slug = 'example-post';
 
--- 全文検索（idx_title_contentを使用）
-SELECT * FROM posts 
-WHERE MATCH(title, content) AGAINST('Lua OpenResty' IN NATURAL LANGUAGE MODE);
+-- 全文検索（GINインデックスを使用）
+SELECT * FROM posts
+WHERE to_tsvector('english', title || ' ' || COALESCE(content, '')) @@ to_tsquery('english', 'Lua & OpenResty');
+
+-- JSONB検索（GINインデックスを使用）
+SELECT * FROM user_settings
+WHERE preferences @> '{"theme": "dark"}';
 ```
 
 ---
