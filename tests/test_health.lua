@@ -50,7 +50,7 @@ describe("Health Check Endpoint", function()
         assert.is_not_nil(res)
         
         local data = cjson.decode(res.body)
-        assert.equals("LuWordPress", data.service)
+        assert.equals("LuaAIDiary", data.service)
     end)
     
     it("should return timestamp", function()

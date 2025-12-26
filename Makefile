@@ -5,7 +5,7 @@ DOCKER_COMPOSE := docker compose
 
 # デフォルトターゲット
 help:
-	@echo "LuWordPress 開発環境 Makefile"
+	@echo "LuaAIDiary 開発環境 Makefile"
 	@echo ""
 	@echo "利用可能なコマンド:"
 	@echo "  make dev        - 開発サーバーを起動（ホットリロード有効）"

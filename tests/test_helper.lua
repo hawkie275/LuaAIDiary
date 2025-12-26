@@ -11,9 +11,9 @@ function _M.setup_db()
     local ok, err = db:connect({
         host = os.getenv("MYSQL_HOST") or "db",
         port = tonumber(os.getenv("MYSQL_PORT")) or 3306,
-        database = os.getenv("MYSQL_DATABASE") or "luwordpress",
-        user = os.getenv("MYSQL_USER") or "luwordpress",
-        password = os.getenv("MYSQL_PASSWORD") or "luwordpress_pass",
+        database = os.getenv("MYSQL_DATABASE") or "luaaidiary",
+        user = os.getenv("MYSQL_USER") or "luaaidiary",
+        password = os.getenv("MYSQL_PASSWORD") or "luaaidiary_pass",
         charset = "utf8mb4"
     })
     

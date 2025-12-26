@@ -41,7 +41,7 @@ describe("Health Check Endpoint", function()
         assert.equals(200, code)
         
         local data = cjson.decode(body)
-        assert.equals("LuWordPress", data.service)
+        assert.equals("LuaAIDiary", data.service)
     end)
     
     it("should return version", function()
@@ -97,7 +97,7 @@ describe("Database Test Endpoint", function()
         assert.equals(200, code)
         
         local data = cjson.decode(body)
-        assert.equals("luwordpress", data.database)
+        assert.equals("luaaidiary", data.database)
     end)
 end)
 

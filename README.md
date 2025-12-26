@@ -101,7 +101,7 @@ If not using Makefile:
 cp .env.example .env
 
 # 2. Build Docker images and start services
-docker-compose up -d --build
+docker compose up -d --build
 
 # 3. Wait for database startup (about 10 seconds)
 sleep 10
@@ -227,7 +227,7 @@ make test
 or
 
 ```bash
-docker-compose exec web busted tests/
+docker compose exec web busted tests/
 ```
 
 ### Run specific test files
@@ -377,7 +377,7 @@ If ports 8080, 3306, or 6379 are already in use, change the port settings in `do
 
 ```bash
 # Check database container status
-docker-compose ps db
+docker compose ps db
 
 # Check database logs
 make logs-db

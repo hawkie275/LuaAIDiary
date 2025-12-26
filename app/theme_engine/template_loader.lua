@@ -6,7 +6,7 @@ local php_executor = require "theme_engine.php_executor"
 local _M = {}
 
 -- アクティブテーマのディレクトリ
-_M.active_theme = "luwordpress-default"  -- 設定から取得
+_M.active_theme = "luaaidiary-default"  -- 設定から取得
 _M.theme_dir = "/app/wp-content/themes/"
 
 -- テンプレート階層定義（WordPressと同じ優先順位）

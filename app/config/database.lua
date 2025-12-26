@@ -19,9 +19,9 @@ end
 _M.config = {
     host = get_env("MYSQL_HOST", "db"),
     port = tonumber(get_env("MYSQL_PORT", "3306")),
-    database = get_env("MYSQL_DATABASE", "luwordpress"),
-    user = get_env("MYSQL_USER", "luwordpress"),
-    password = get_env("MYSQL_PASSWORD", "luwordpress_pass"),
+    database = get_env("MYSQL_DATABASE", "luaaidiary"),
+    user = get_env("MYSQL_USER", "luaaidiary"),
+    password = get_env("MYSQL_PASSWORD", "luaaidiary_pass"),
     charset = "utf8mb4",
     max_packet_size = 1024 * 1024 * 16,  -- 16MB
     pool_size = tonumber(get_env("DB_POOL_SIZE", "100")),
