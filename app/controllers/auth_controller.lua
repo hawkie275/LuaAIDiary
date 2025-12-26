@@ -13,6 +13,7 @@ local function json_response(data, status)
   ngx.status = status or 200
   ngx.header.content_type = "application/json"
   ngx.say(cjson.encode(data))
+  ngx.exit(ngx.OK)
 end
 
 -- リクエストボディからJSONを取得するヘルパー関数
@@ -129,8 +130,9 @@ function AuthController.login()
     }, 400)
   end
 
-  -- 入力検証
-  if not data.username_or_email or data.username_or_email == "" then
+  -- 入力検証（username、email、username_or_emailのいずれかを受け入れる）
+  local username_or_email = data.username_or_email or data.username or data.email
+  if not username_or_email or username_or_email == "" then
     return json_response({
       success = false,
       error = "Username or email is required"
@@ -145,7 +147,7 @@ function AuthController.login()
   end
 
   -- ログイン処理
-  local result, err = AuthService.login(data.username_or_email, data.password)
+  local result, err = AuthService.login(username_or_email, data.password)
   if not result then
     return json_response({
       success = false,

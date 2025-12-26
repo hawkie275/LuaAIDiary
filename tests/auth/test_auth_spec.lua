@@ -7,10 +7,134 @@ describe("認証システム", function()
   local User
   
   setup(function()
+    -- ngxのモック
+    _G.ngx = {
+      log = function() end,
+      ERR = 1,
+      WARN = 2,
+      INFO = 3,
+      var = {},
+      req = {
+        get_method = function() return "GET" end
+      },
+      socket = {
+        tcp = function()
+          return {
+            connect = function() return true end,
+            setkeepalive = function() return true end,
+            close = function() return true end,
+            settimeout = function() return true end,
+            send = function() return true end,
+            receive = function() return "+OK\r\n" end
+          }
+        end
+      }
+    }
+    
+    -- resty.stringのモック
+    package.preload["resty.string"] = function()
+      return {
+        to_hex = function(str)
+          local hex = ""
+          for i = 1, #str do
+            hex = hex .. string.format("%02x", string.byte(str, i))
+          end
+          return hex
+        end,
+        from_hex = function(hex)
+          local str = ""
+          for i = 1, #hex, 2 do
+            local byte_str = hex:sub(i, i + 1)
+            str = str .. string.char(tonumber(byte_str, 16))
+          end
+          return str
+        end
+      }
+    end
+    
+    -- resty.randomのモック
+    package.preload["resty.random"] = function()
+      return {
+        bytes = function(length)
+          local bytes = {}
+          for i = 1, length do
+            bytes[i] = string.char(math.random(0, 255))
+          end
+          return table.concat(bytes)
+        end
+      }
+    end
+    
+    -- resty.aesのモック
+    package.preload["resty.aes"] = function()
+      local aes = {}
+      function aes:new(key, salt, cipher_mode, params)
+        return {
+          encrypt = function(self, plaintext)
+            -- 簡易的な暗号化シミュレーション
+            return "encrypted_" .. plaintext
+          end,
+          decrypt = function(self, ciphertext)
+            -- 簡易的な復号化シミュレーション
+            return ciphertext:gsub("^encrypted_", "")
+          end
+        }
+      end
+      function aes.cipher(bits, mode)
+        return bits .. "_" .. mode
+      end
+      return aes
+    end
+    
+    -- bcryptのモック
+    package.preload["bcrypt"] = function()
+      return {
+        digest = function(password, rounds)
+          -- 簡易的なハッシュ化（テスト用）
+          return "$2a$12$" .. password:rep(2):sub(1, 53), nil
+        end,
+        verify = function(password, hash)
+          local expected_hash = "$2a$12$" .. password:rep(2):sub(1, 53)
+          return hash == expected_hash
+        end
+      }
+    end
+    
+    -- bitモジュールのモック（Lua 5.1互換）
+    package.preload["bit"] = function()
+      local bit = {}
+      function bit.bor(a, b)
+        local result = 0
+        local bitval = 1
+        while a > 0 or b > 0 do
+          local a_bit = a % 2
+          local b_bit = b % 2
+          if a_bit == 1 or b_bit == 1 then
+            result = result + bitval
+          end
+          bitval = bitval * 2
+          a = math.floor(a / 2)
+          b = math.floor(b / 2)
+        end
+        return result
+      end
+      return bit
+    end
+    
     -- テスト用の環境設定
     AuthService = require("services.auth_service")
     Session = require("utils.session")
     User = require("models.user")
+  end)
+  
+  teardown(function()
+    -- モックをクリーンアップ
+    _G.ngx = nil
+    package.loaded["resty.string"] = nil
+    package.loaded["resty.random"] = nil
+    package.loaded["resty.aes"] = nil
+    package.loaded["bcrypt"] = nil
+    package.loaded["bit"] = nil
   end)
 
   describe("パスワードハッシュ化", function()

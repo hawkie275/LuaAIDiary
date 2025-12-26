@@ -16,7 +16,8 @@ function _M.validate_email(email)
     end
     
     -- 基本的なメールアドレス形式チェック
-    local pattern = "^[%w%.%%%+%-]+@[%w%.%%%+%-]+%.%w%w+$"
+    -- ローカル部分@ドメイン.TLD の形式
+    local pattern = "^[%w%.%+%-_]+@[%w%.%-]+%.%w+$"
     if not email:match(pattern) then
         return false, "無効なメールアドレス形式です"
     end

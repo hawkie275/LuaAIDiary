@@ -110,10 +110,12 @@ function _M:create(data)
         end
     end
     
-    local query = string.format("INSERT INTO %s (%s) VALUES (%s)",
+    -- PostgreSQL用にRETURNING句を追加
+    local query = string.format("INSERT INTO %s (%s) VALUES (%s) RETURNING %s",
         self.table_name,
         table.concat(fields, ", "),
-        table.concat(values, ", ")
+        table.concat(values, ", "),
+        self.primary_key
     )
     
     local db, err = db_config.connect()
@@ -127,7 +129,14 @@ function _M:create(data)
         return nil, err
     end
     
-    local insert_id = res.insert_id
+    -- PostgreSQLではRETURNINGで返された値を取得
+    local insert_id
+    if res[1] and res[1][self.primary_key] then
+        insert_id = res[1][self.primary_key]
+    else
+        insert_id = res.insert_id  -- フォールバック
+    end
+    
     db_config.close(db)
     
     return insert_id, nil
