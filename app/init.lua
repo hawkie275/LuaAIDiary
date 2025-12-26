@@ -18,6 +18,9 @@ local slug_util = require("utils.slug")
 -- テーマコントローラーの初期化
 local theme_controller = require("controllers.theme_controller")
 
+-- 認証コントローラーの初期化
+local auth_controller = require("controllers.auth_controller")
+
 -- ========================================
 -- WordPress風URLルーティング
 -- ========================================
@@ -217,6 +220,28 @@ app:get("/api/models-test", function(self)
     
     return {json = results}
 end)
+
+-- ========================================
+-- 認証APIエンドポイント
+-- ========================================
+
+-- ユーザー登録
+app:match("auth_register", "/api/auth/register", auth_controller.register)
+
+-- ログイン
+app:match("auth_login", "/api/auth/login", auth_controller.login)
+
+-- ログアウト
+app:match("auth_logout", "/api/auth/logout", auth_controller.logout)
+
+-- 現在のユーザー情報取得
+app:match("auth_me", "/api/auth/me", auth_controller.me)
+
+-- パスワード変更
+app:match("auth_change_password", "/api/auth/change-password", auth_controller.change_password)
+
+-- 認証状態チェック
+app:match("auth_check", "/api/auth/check", auth_controller.check)
 
 -- 404エラーハンドリング
 app:match("*", function(self)
