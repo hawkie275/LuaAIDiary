@@ -24,6 +24,15 @@ local auth_controller = require("controllers.auth_controller")
 -- 投稿コントローラーの初期化
 local post_controller = require("controllers.post_controller")
 
+-- カテゴリーコントローラーの初期化
+local category_controller = require("controllers.category_controller")
+
+-- タグコントローラーの初期化
+local tag_controller = require("controllers.tag_controller")
+
+-- CSRFミドルウェアの初期化
+local csrf = require("middleware.csrf")
+
 -- ========================================
 -- WordPress風URLルーティング
 -- ========================================
@@ -249,6 +258,15 @@ app:match("auth_change_password", "/api/auth/change-password", auth_controller.c
 app:match("auth_check", "/api/auth/check", auth_controller.check)
 
 -- ========================================
+-- CSRFトークンAPIエンドポイント
+-- ========================================
+
+-- CSRFトークン取得
+app:get("/api/csrf-token", function(self)
+    return csrf.get_token_endpoint(self)
+end)
+
+-- ========================================
 -- 投稿APIエンドポイント
 -- ========================================
 
@@ -271,6 +289,56 @@ end)
 -- 投稿削除
 app:delete("/api/posts/:id", function(self)
     return post_controller.delete(self.params.id)
+end)
+
+-- ========================================
+-- カテゴリーAPIエンドポイント
+-- ========================================
+
+-- カテゴリー一覧取得
+app:get("/api/categories", category_controller.index)
+
+-- カテゴリー作成
+app:post("/api/categories", category_controller.create)
+
+-- カテゴリー詳細取得
+app:get("/api/categories/:id", function(self)
+    return category_controller.show(self.params.id)
+end)
+
+-- カテゴリー更新
+app:put("/api/categories/:id", function(self)
+    return category_controller.update(self.params.id)
+end)
+
+-- カテゴリー削除
+app:delete("/api/categories/:id", function(self)
+    return category_controller.delete(self.params.id)
+end)
+
+-- ========================================
+-- タグAPIエンドポイント
+-- ========================================
+
+-- タグ一覧取得
+app:get("/api/tags", tag_controller.index)
+
+-- タグ作成
+app:post("/api/tags", tag_controller.create)
+
+-- タグ詳細取得
+app:get("/api/tags/:id", function(self)
+    return tag_controller.show(self.params.id)
+end)
+
+-- タグ更新
+app:put("/api/tags/:id", function(self)
+    return tag_controller.update(self.params.id)
+end)
+
+-- タグ削除
+app:delete("/api/tags/:id", function(self)
+    return tag_controller.delete(self.params.id)
 end)
 
 -- 404エラーハンドリング
