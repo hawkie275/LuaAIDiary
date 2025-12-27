@@ -85,29 +85,39 @@ end
 
 -- カテゴリーアーカイブを表示
 function _M.category(slug)
-    -- カテゴリーを取得
-    local category = Category:find_by_slug(slug)
+    -- カテゴリーを取得（静的メソッドなので.を使う）
+    local category = Category.find_by_slug(slug)
     
     if not category then
         return _M.error_404()
     end
     
-    -- カテゴリーの投稿を取得
-    local posts = category:get_posts()
-    
-    -- クエリを作成
-    local query = wp_query:new({
-        category_name = slug,
-        posts_per_page = 10,
-        paged = tonumber(ngx.var.arg_paged) or 1
+    -- カテゴリーの投稿を取得（静的メソッドとして呼び出し）
+    local posts, err = Category.get_posts(category.id, {
+        published_only = true,
+        limit = 10,
+        offset = ((tonumber(ngx.var.arg_paged) or 1) - 1) * 10
     })
+    
+    -- 空のクエリを作成（投稿は手動で設定）
+    local query = wp_query:new({})
+    
+    -- 取得した投稿をクエリに設定
+    query.posts = posts or {}
+    query.post_count = #query.posts
+    query.found_posts = #query.posts
+    query.max_num_pages = 1
+    
+    -- クエリされたオブジェクトを設定
+    query.queried_object = category
+    query.queried_object_id = category.id
     
     wp_query.set_global_query(query)
     
     -- コンテキストを準備
     local context = {
         category = category,
-        posts = posts,
+        posts = posts or {},
         query = query
     }
     
@@ -125,29 +135,39 @@ end
 
 -- タグアーカイブを表示
 function _M.tag(slug)
-    -- タグを取得
-    local tag = Tag:find_by_slug(slug)
+    -- タグを取得（静的メソッドなので.を使う）
+    local tag = Tag.find_by_slug(slug)
     
     if not tag then
         return _M.error_404()
     end
     
-    -- タグの投稿を取得
-    local posts = tag:get_posts()
-    
-    -- クエリを作成
-    local query = wp_query:new({
-        tag = slug,
-        posts_per_page = 10,
-        paged = tonumber(ngx.var.arg_paged) or 1
+    -- タグの投稿を取得（静的メソッドとして呼び出し）
+    local posts = Tag.get_posts(tag.id, {
+        published_only = true,
+        limit = 10,
+        offset = ((tonumber(ngx.var.arg_paged) or 1) - 1) * 10
     })
+    
+    -- 空のクエリを作成（投稿は手動で設定）
+    local query = wp_query:new({})
+    
+    -- 取得した投稿をクエリに設定
+    query.posts = posts or {}
+    query.post_count = #query.posts
+    query.found_posts = #query.posts
+    query.max_num_pages = 1
+    
+    -- クエリされたオブジェクトを設定
+    query.queried_object = tag
+    query.queried_object_id = tag.id
     
     wp_query.set_global_query(query)
     
     -- コンテキストを準備
     local context = {
         tag = tag,
-        posts = posts,
+        posts = posts or {},
         query = query
     }
     
