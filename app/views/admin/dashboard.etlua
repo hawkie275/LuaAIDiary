@@ -1,0 +1,173 @@
+<!-- ウェルカムメッセージ -->
+<div class="card">
+    <div class="card-header">
+        👋 ようこそ、<%= user and (user.username or user.email) or "管理者" %>さん
+    </div>
+    <div class="card-body">
+        <p>LuaAIDiary 管理画面へようこそ。ここではブログの投稿、カテゴリー、タグ、その他の設定を管理できます。</p>
+    </div>
+</div>
+
+<!-- 統計情報カード -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-icon">📝</span>
+        <span class="stat-label">総投稿数</span>
+        <span class="stat-value"><%= stats and stats.posts_count or 0 %></span>
+    </div>
+    
+    <div class="stat-card secondary">
+        <span class="stat-icon">📁</span>
+        <span class="stat-label">カテゴリー数</span>
+        <span class="stat-value"><%= stats and stats.categories_count or 0 %></span>
+    </div>
+    
+    <div class="stat-card success">
+        <span class="stat-icon">🏷️</span>
+        <span class="stat-label">タグ数</span>
+        <span class="stat-value"><%= stats and stats.tags_count or 0 %></span>
+    </div>
+    
+    <div class="stat-card warning">
+        <span class="stat-icon">💬</span>
+        <span class="stat-label">コメント数</span>
+        <span class="stat-value"><%= stats and stats.comments_count or 0 %></span>
+    </div>
+</div>
+
+<!-- 最近の投稿 -->
+<div class="card">
+    <div class="card-header">
+        📰 最近の投稿
+    </div>
+    <div class="card-body">
+        <% if recent_posts and #recent_posts > 0 then %>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>タイトル</th>
+                        <th>ステータス</th>
+                        <th>カテゴリー</th>
+                        <th>作成日</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% for _, post in ipairs(recent_posts) do %>
+                        <tr>
+                            <td>
+                                <strong><%= post.title %></strong>
+                                <% if post.excerpt then %>
+                                    <br>
+                                    <span class="text-muted" style="font-size: 12px;">
+                                        <%= string.sub(post.excerpt, 1, 80) %><%= #post.excerpt > 80 and "..." or "" %>
+                                    </span>
+                                <% end %>
+                            </td>
+                            <td>
+                                <% if post.status == "published" then %>
+                                    <span style="color: var(--success-color); font-weight: 500;">✓ 公開</span>
+                                <% elseif post.status == "draft" then %>
+                                    <span style="color: var(--text-secondary);">📄 下書き</span>
+                                <% else %>
+                                    <span style="color: var(--text-secondary);"><%= post.status %></span>
+                                <% end %>
+                            </td>
+                            <td>
+                                <% if post.category_name then %>
+                                    <%= post.category_name %>
+                                <% else %>
+                                    <span class="text-muted">未分類</span>
+                                <% end %>
+                            </td>
+                            <td>
+                                <% if post.created_at then %>
+                                    <% if type(post.created_at) == "number" then %>
+                                        <%= os.date("%Y-%m-%d %H:%M", post.created_at) %>
+                                    <% else %>
+                                        <%= tostring(post.created_at):sub(1, 16) %>
+                                    <% end %>
+                                <% else %>
+                                    <span class="text-muted">-</span>
+                                <% end %>
+                            </td>
+                            <td>
+                                <a href="/admin/posts/<%= post.id %>/edit" class="btn btn-primary" style="padding: 5px 12px; font-size: 12px; text-decoration: none;">編集</a>
+                                <a href="/posts/<%= post.slug %>" target="_blank" class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px; text-decoration: none; margin-left: 5px;">表示</a>
+                            </td>
+                        </tr>
+                    <% end %>
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 15px; text-align: right;">
+                <a href="/admin/posts" class="btn btn-secondary">すべての投稿を表示 →</a>
+            </div>
+        <% else %>
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-secondary);">
+                <div style="font-size: 48px; margin-bottom: 15px;">📝</div>
+                <p style="font-size: 16px; margin-bottom: 10px;">まだ投稿がありません</p>
+                <p style="font-size: 14px; margin-bottom: 20px;">最初の投稿を作成してブログを始めましょう！</p>
+                <a href="/admin/posts/new" class="btn btn-primary">新規投稿を作成</a>
+            </div>
+        <% end %>
+    </div>
+</div>
+
+<!-- クイックアクション -->
+<div class="stats-grid" style="margin-top: 30px;">
+    <div class="card" style="text-align: center; padding: 30px;">
+        <div style="font-size: 36px; margin-bottom: 15px;">✍️</div>
+        <h3 style="margin-bottom: 10px; font-size: 16px;">新規投稿</h3>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">新しいブログ記事を作成</p>
+        <a href="/admin/posts/new" class="btn btn-primary">作成する</a>
+    </div>
+    
+    <div class="card" style="text-align: center; padding: 30px;">
+        <div style="font-size: 36px; margin-bottom: 15px;">📁</div>
+        <h3 style="margin-bottom: 10px; font-size: 16px;">カテゴリー管理</h3>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">カテゴリーを追加・編集</p>
+        <a href="/admin/categories" class="btn btn-secondary">管理する</a>
+    </div>
+    
+    <div class="card" style="text-align: center; padding: 30px;">
+        <div style="font-size: 36px; margin-bottom: 15px;">🏷️</div>
+        <h3 style="margin-bottom: 10px; font-size: 16px;">タグ管理</h3>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">タグを追加・編集</p>
+        <a href="/admin/tags" class="btn btn-secondary">管理する</a>
+    </div>
+    
+    <div class="card" style="text-align: center; padding: 30px;">
+        <div style="font-size: 36px; margin-bottom: 15px;">⚙️</div>
+        <h3 style="margin-bottom: 10px; font-size: 16px;">サイト設定</h3>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">ブログの設定を変更</p>
+        <a href="/admin/settings" class="btn btn-secondary">設定する</a>
+    </div>
+</div>
+
+<!-- システム情報 -->
+<div class="card" style="margin-top: 30px;">
+    <div class="card-header">
+        ℹ️ システム情報
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+            <div>
+                <strong style="color: var(--text-secondary); font-size: 13px;">バージョン:</strong>
+                <div style="margin-top: 5px;">LuaAIDiary 1.0.0</div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary); font-size: 13px;">Lua バージョン:</strong>
+                <div style="margin-top: 5px;"><%= _VERSION or "Unknown" %></div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary); font-size: 13px;">サーバー時刻:</strong>
+                <div style="margin-top: 5px;"><%= os.date("%Y-%m-%d %H:%M:%S") %></div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary); font-size: 13px;">データベース:</strong>
+                <div style="margin-top: 5px;">PostgreSQL</div>
+            </div>
+        </div>
+    </div>
+</div>
