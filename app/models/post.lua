@@ -112,20 +112,34 @@ function _M.update_post(id, data)
     
     -- トランザクション内で更新
     local success, result = _M:transaction(function(db)
+        -- カテゴリとタグを別途保存
+        local categories = data.categories
+        local tags = data.tags
+        
+        -- 基本情報のみを抽出（postsテーブルのカラムのみ）
+        local post_data = {
+            title = data.title,
+            content = data.content,
+            excerpt = data.excerpt,
+            status = data.status,
+            slug = data.slug,
+            published_at = data.published_at
+        }
+        
         -- 基本情報を更新
-        local ok, err = _M:update(id, data)
+        local ok, err = _M:update(id, post_data)
         if not ok then
             error(err or "投稿の更新に失敗しました")
         end
         
         -- カテゴリを更新
-        if data.categories then
-            _M.sync_categories(id, data.categories, db)
+        if categories then
+            _M.sync_categories(id, categories, db)
         end
         
         -- タグを更新
-        if data.tags then
-            _M.sync_tags(id, data.tags, db)
+        if tags then
+            _M.sync_tags(id, tags, db)
         end
         
         return true
@@ -303,9 +317,9 @@ function _M.search(keyword, options)
     
     local query = string.format([[
         SELECT * FROM posts
-        WHERE MATCH(title, content) AGAINST(%s IN NATURAL LANGUAGE MODE)%s
+        WHERE to_tsvector('english', title || ' ' || content) @@ to_tsquery('english', %s)%s
         ORDER BY %s
-    ]], 
+    ]],
         db_config.escape(keyword),
         status_clause,
         options.order_by or "published_at DESC"
@@ -344,9 +358,10 @@ end
 -- @return 成功フラグ、エラー
 function _M.add_category(post_id, category_id, db)
     local query = string.format([[
-        INSERT IGNORE INTO post_categories (post_id, category_id)
+        INSERT INTO post_categories (post_id, category_id)
         VALUES (%s, %s)
-    ]], 
+        ON CONFLICT DO NOTHING
+    ]],
         db_config.escape(tostring(post_id)),
         db_config.escape(tostring(category_id))
     )
@@ -435,9 +450,10 @@ end
 -- @return 成功フラグ、エラー
 function _M.add_tag(post_id, tag_id, db)
     local query = string.format([[
-        INSERT IGNORE INTO post_tags (post_id, tag_id)
+        INSERT INTO post_tags (post_id, tag_id)
         VALUES (%s, %s)
-    ]], 
+        ON CONFLICT DO NOTHING
+    ]],
         db_config.escape(tostring(post_id)),
         db_config.escape(tostring(tag_id))
     )
@@ -513,6 +529,118 @@ function _M.get_tags(post_id)
     end
     
     return tags
+end
+
+-- 複数投稿のカテゴリを一括取得（N+1問題対策）
+-- @param post_ids 投稿IDの配列
+-- @return 投稿IDをキーとするカテゴリマップ {post_id: [categories]}
+function _M.get_categories_batch(post_ids)
+    if not post_ids or #post_ids == 0 then
+        return {}
+    end
+    
+    -- IDリストを作成
+    local id_list = {}
+    for _, id in ipairs(post_ids) do
+        table.insert(id_list, db_config.escape(tostring(id)))
+    end
+    
+    local query = string.format([[
+        SELECT
+            post_categories.post_id,
+            categories.id,
+            categories.name,
+            categories.slug,
+            categories.description,
+            categories.created_at
+        FROM categories
+        INNER JOIN post_categories ON categories.id = post_categories.category_id
+        WHERE post_categories.post_id IN (%s)
+        ORDER BY post_categories.post_id, categories.name
+    ]], table.concat(id_list, ", "))
+    
+    local results, err = db_config.query(query)
+    if not results then
+        ngx.log(ngx.ERR, "カテゴリ一括取得エラー: ", err)
+        return {}
+    end
+    
+    -- 投稿IDごとにグループ化
+    local category_map = {}
+    for _, post_id in ipairs(post_ids) do
+        category_map[tostring(post_id)] = {}
+    end
+    
+    for _, row in ipairs(results) do
+        local post_id = tostring(row.post_id)
+        if not category_map[post_id] then
+            category_map[post_id] = {}
+        end
+        table.insert(category_map[post_id], {
+            id = row.id,
+            name = row.name,
+            slug = row.slug,
+            description = row.description,
+            created_at = row.created_at
+        })
+    end
+    
+    return category_map
+end
+
+-- 複数投稿のタグを一括取得（N+1問題対策）
+-- @param post_ids 投稿IDの配列
+-- @return 投稿IDをキーとするタグマップ {post_id: [tags]}
+function _M.get_tags_batch(post_ids)
+    if not post_ids or #post_ids == 0 then
+        return {}
+    end
+    
+    -- IDリストを作成
+    local id_list = {}
+    for _, id in ipairs(post_ids) do
+        table.insert(id_list, db_config.escape(tostring(id)))
+    end
+    
+    local query = string.format([[
+        SELECT
+            post_tags.post_id,
+            tags.id,
+            tags.name,
+            tags.slug,
+            tags.created_at
+        FROM tags
+        INNER JOIN post_tags ON tags.id = post_tags.tag_id
+        WHERE post_tags.post_id IN (%s)
+        ORDER BY post_tags.post_id, tags.name
+    ]], table.concat(id_list, ", "))
+    
+    local results, err = db_config.query(query)
+    if not results then
+        ngx.log(ngx.ERR, "タグ一括取得エラー: ", err)
+        return {}
+    end
+    
+    -- 投稿IDごとにグループ化
+    local tag_map = {}
+    for _, post_id in ipairs(post_ids) do
+        tag_map[tostring(post_id)] = {}
+    end
+    
+    for _, row in ipairs(results) do
+        local post_id = tostring(row.post_id)
+        if not tag_map[post_id] then
+            tag_map[post_id] = {}
+        end
+        table.insert(tag_map[post_id], {
+            id = row.id,
+            name = row.name,
+            slug = row.slug,
+            created_at = row.created_at
+        })
+    end
+    
+    return tag_map
 end
 
 -- ========================================

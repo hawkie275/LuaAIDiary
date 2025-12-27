@@ -7,6 +7,7 @@ local Category = require("models.category")
 local Tag = require("models.tag")
 local Session = require("utils.session")
 local validator = require("utils.validator")
+local csrf = require("middleware.csrf")
 
 local PostController = {}
 
@@ -40,15 +41,51 @@ local function get_authenticated_user()
     local ok = session:start()
     
     if not ok or not session:is_authenticated() then
-        return nil, "認証が必要です"
+        return nil, nil, "認証が必要です"
     end
     
     local user_id = session:get_user_id()
     if not user_id then
-        return nil, "ユーザー情報の取得に失敗しました"
+        return nil, nil, "ユーザー情報の取得に失敗しました"
     end
     
-    return user_id, nil
+    return user_id, session, nil
+end
+
+-- CSRFトークンを検証
+-- @param session セッションオブジェクト
+-- @param json_data JSONボディデータ（オプション）
+-- @return 検証結果、エラーメッセージ
+local function verify_csrf_token(session, json_data)
+    if not session then
+        return false, "セッションが無効です"
+    end
+    
+    -- セッションからトークンを取得
+    local session_token = session:get("csrf_token")
+    if not session_token or session_token == "" then
+        return false, "CSRFトークンがセッションに存在しません"
+    end
+    
+    -- リクエストヘッダーからトークンを取得
+    local headers = ngx.req.get_headers()
+    local request_token = headers["x-csrf-token"] or headers["X-CSRF-Token"]
+    
+    -- ヘッダーになければJSONボディから取得
+    if not request_token and json_data then
+        request_token = json_data._csrf_token or json_data.csrf_token
+    end
+    
+    if not request_token or request_token == "" then
+        return false, "CSRFトークンが提供されていません"
+    end
+    
+    -- トークンを比較
+    if session_token ~= request_token then
+        return false, "CSRFトークンが一致しません"
+    end
+    
+    return true, nil
 end
 
 -- 投稿データのバリデーション
@@ -143,7 +180,7 @@ end
 -- POST /api/posts
 function PostController.create()
     -- 認証チェック
-    local user_id, err = get_authenticated_user()
+    local user_id, session, err = get_authenticated_user()
     if not user_id then
         return json_response({
             success = false,
@@ -158,6 +195,15 @@ function PostController.create()
             success = false,
             error = err or "無効なリクエスト"
         }, 400)
+    end
+    
+    -- CSRFトークン検証
+    local csrf_valid, csrf_err = verify_csrf_token(session, data)
+    if not csrf_valid then
+        return json_response({
+            success = false,
+            error = csrf_err or "CSRF検証に失敗しました"
+        }, 403)
     end
     
     -- バリデーション
@@ -228,6 +274,8 @@ function PostController.index()
     local limit = tonumber(args.limit) or 10
     local offset = tonumber(args.offset) or 0
     local status = args.status
+    local category_id = args.category_id
+    local tag_id = args.tag_id
     
     -- 認証チェック（オプション）
     local user_id, _ = get_authenticated_user()
@@ -238,18 +286,108 @@ function PostController.index()
         order_by = "created_at DESC"
     }
     
+    -- 公開済みのみの場合は published_only フラグを設定
+    if not user_id then
+        options.published_only = true
+    end
+    
     local posts, err
     
-    -- 認証されている場合は全ステータスの投稿を取得可能
-    -- 未認証の場合は公開済み投稿のみ
-    if user_id then
-        if status then
-            options.where = string.format("status = '%s'", status)
+    -- カテゴリーIDとタグIDの両方が指定された場合
+    if category_id and tag_id then
+        -- カテゴリーIDのバリデーション
+        local ok, cat_num = validator.validate_positive_integer(category_id)
+        if not ok then
+            return json_response({
+                success = false,
+                error = "無効なカテゴリーIDです"
+            }, 400)
         end
-        posts, err = Post:all(options)
+        
+        -- タグIDのバリデーション
+        ok, tag_num = validator.validate_positive_integer(tag_id)
+        if not ok then
+            return json_response({
+                success = false,
+                error = "無効なタグIDです"
+            }, 400)
+        end
+        
+        -- カテゴリーとタグの両方で絞り込み（AND条件）
+        local cat_posts, cat_err = Post.find_by_category(cat_num, options)
+        if not cat_posts then
+            return json_response({
+                success = false,
+                error = cat_err or "投稿の取得に失敗しました"
+            }, 500)
+        end
+        
+        -- カテゴリーで絞り込んだ投稿からタグでさらに絞り込み
+        posts = {}
+        for _, post in ipairs(cat_posts) do
+            for _, tag in ipairs(post.tags or {}) do
+                if tonumber(tag.id) == tag_num then
+                    table.insert(posts, post)
+                    break
+                end
+            end
+        end
+        
+    -- カテゴリーIDのみ指定された場合
+    elseif category_id then
+        -- カテゴリーIDのバリデーション
+        local ok, cat_num = validator.validate_positive_integer(category_id)
+        if not ok then
+            return json_response({
+                success = false,
+                error = "無効なカテゴリーIDです"
+            }, 400)
+        end
+        
+        -- カテゴリーの存在確認
+        if not Category:exists(cat_num) then
+            return json_response({
+                success = false,
+                error = "カテゴリーが存在しません"
+            }, 400)
+        end
+        
+        posts, err = Post.find_by_category(cat_num, options)
+        
+    -- タグIDのみ指定された場合
+    elseif tag_id then
+        -- タグIDのバリデーション
+        local ok, tag_num = validator.validate_positive_integer(tag_id)
+        if not ok then
+            return json_response({
+                success = false,
+                error = "無効なタグIDです"
+            }, 400)
+        end
+        
+        -- タグの存在確認
+        if not Tag:exists(tag_num) then
+            return json_response({
+                success = false,
+                error = "タグが存在しません"
+            }, 400)
+        end
+        
+        posts, err = Post.find_by_tag(tag_num, options)
+        
+    -- カテゴリーもタグも指定されていない場合
     else
-        -- 公開済み投稿のみ
-        posts, err = Post.find_published(options)
+        -- 認証されている場合は全ステータスの投稿を取得可能
+        -- 未認証の場合は公開済み投稿のみ
+        if user_id then
+            if status then
+                options.where = string.format("status = '%s'", status)
+            end
+            posts, err = Post:all(options)
+        else
+            -- 公開済み投稿のみ
+            posts, err = Post.find_published(options)
+        end
     end
     
     if not posts then
@@ -259,11 +397,25 @@ function PostController.index()
         }, 500)
     end
     
-    -- 各投稿にカテゴリーとタグを追加
-    for _, post in ipairs(posts) do
-        post.categories = Post.get_categories(post.id) or {}
-        post.tags = Post.get_tags(post.id) or {}
-        post.user_id = post.author_id
+    -- N+1問題を回避：一括取得を使用
+    if #posts > 0 then
+        -- 投稿IDのリストを作成
+        local post_ids = {}
+        for _, post in ipairs(posts) do
+            table.insert(post_ids, post.id)
+        end
+        
+        -- カテゴリーとタグを一括取得
+        local categories_map = Post.get_categories_batch(post_ids)
+        local tags_map = Post.get_tags_batch(post_ids)
+        
+        -- 各投稿にカテゴリーとタグを追加
+        for _, post in ipairs(posts) do
+            local post_id_str = tostring(post.id)
+            post.categories = categories_map[post_id_str] or {}
+            post.tags = tags_map[post_id_str] or {}
+            post.user_id = post.author_id
+        end
     end
     
     return json_response({
@@ -335,7 +487,7 @@ end
 -- PUT /api/posts/:id
 function PostController.update(post_id)
     -- 認証チェック
-    local user_id, err = get_authenticated_user()
+    local user_id, session, err = get_authenticated_user()
     if not user_id then
         return json_response({
             success = false,
@@ -386,6 +538,15 @@ function PostController.update(post_id)
             success = false,
             error = err or "無効なリクエスト"
         }, 400)
+    end
+    
+    -- CSRFトークン検証
+    local csrf_valid, csrf_err = verify_csrf_token(session, data)
+    if not csrf_valid then
+        return json_response({
+            success = false,
+            error = csrf_err or "CSRF検証に失敗しました"
+        }, 403)
     end
     
     -- バリデーション（更新時は一部のフィールドのみチェック）
@@ -458,12 +619,21 @@ end
 -- DELETE /api/posts/:id
 function PostController.delete(post_id)
     -- 認証チェック
-    local user_id, err = get_authenticated_user()
+    local user_id, session, err = get_authenticated_user()
     if not user_id then
         return json_response({
             success = false,
             error = err or "認証が必要です"
         }, 401)
+    end
+    
+    -- CSRFトークン検証（DELETEリクエストの場合はヘッダーのみから取得）
+    local csrf_valid, csrf_err = verify_csrf_token(session, nil)
+    if not csrf_valid then
+        return json_response({
+            success = false,
+            error = csrf_err or "CSRF検証に失敗しました"
+        }, 403)
     end
     
     if not post_id then
