@@ -258,6 +258,71 @@ function _M.get_the_tags(post_id)
     return post and post.tags or {}
 end
 
+-- クエリされたオブジェクトを取得（アーカイブページ用）
+-- @return クエリされたオブジェクト（カテゴリー、タグ、著者など）
+function _M.get_queried_object()
+    local wp_query = require "theme_engine.wp_query"
+    local query = wp_query.get_global_query()
+    
+    if query and query.queried_object then
+        return query.queried_object
+    end
+    
+    return nil
+end
+
+-- カテゴリータイトルを表示
+-- @param prefix タイトルの前に付ける文字列（デフォルト: 空文字列）
+-- @param display true=出力、false=文字列を返す（デフォルト: true）
+-- @return displayがfalseの場合は文字列、trueの場合はnil
+function _M.single_cat_title(prefix, display)
+    prefix = prefix or ''
+    display = display == nil and true or display
+    
+    local current_category = _M.get_queried_object()
+    if not current_category or not current_category.name then
+        if not display then
+            return ''
+        end
+        return nil
+    end
+    
+    local title = prefix .. current_category.name
+    
+    if display then
+        ngx.print(_M.escape_html(title))
+        return nil
+    else
+        return title
+    end
+end
+
+-- タグタイトルを表示
+-- @param prefix タイトルの前に付ける文字列（デフォルト: 空文字列）
+-- @param display true=出力、false=文字列を返す（デフォルト: true）
+-- @return displayがfalseの場合は文字列、trueの場合はnil
+function _M.single_tag_title(prefix, display)
+    prefix = prefix or ''
+    display = display == nil and true or display
+    
+    local current_tag = _M.get_queried_object()
+    if not current_tag or not current_tag.name then
+        if not display then
+            return ''
+        end
+        return nil
+    end
+    
+    local title = prefix .. current_tag.name
+    
+    if display then
+        ngx.print(_M.escape_html(title))
+        return nil
+    else
+        return title
+    end
+end
+
 -- ========================================
 -- アイキャッチ画像
 -- ========================================

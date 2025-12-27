@@ -42,29 +42,24 @@ app:get("/", function(self)
     return theme_controller.index()
 end)
 
--- 単一投稿: /:slug
-app:get("/:slug", function(self)
-    return theme_controller.single(self.params.slug)
+-- 検索: /search（具体的なルートを先に定義）
+app:get("/search", function(self)
+    return theme_controller.search()
 end)
 
--- カテゴリーアーカイブ: /category/:slug
+-- カテゴリーアーカイブ: /category/:slug（具体的なルートを先に定義）
 app:get("/category/:slug", function(self)
     return theme_controller.category(self.params.slug)
 end)
 
--- タグアーカイブ: /tag/:slug
+-- タグアーカイブ: /tag/:slug（具体的なルートを先に定義）
 app:get("/tag/:slug", function(self)
     return theme_controller.tag(self.params.slug)
 end)
 
--- 著者アーカイブ: /author/:username
+-- 著者アーカイブ: /author/:username（具体的なルートを先に定義）
 app:get("/author/:username", function(self)
     return theme_controller.author(self.params.username)
-end)
-
--- 検索: /search
-app:get("/search", function(self)
-    return theme_controller.search()
 end)
 
 -- 日付アーカイブ: /:year/:month/:day
@@ -94,15 +89,16 @@ app:get("/:year/:month", function(self)
     end
 end)
 
--- 日付アーカイブ: /:year
-app:get("/:year", function(self)
-    local year = self.params.year
+-- 単一投稿またはアーカイブ: /:slug（キャッチオール）
+app:get("/:slug", function(self)
+    local slug = self.params.slug
     
-    -- 数値チェック
-    if tonumber(year) then
-        return theme_controller.date_archive(year, nil, nil)
+    -- 数値の場合は年別アーカイブとして扱う
+    if tonumber(slug) then
+        return theme_controller.date_archive(slug, nil, nil)
     else
-        return theme_controller.error_404()
+        -- それ以外は投稿スラッグとして扱う
+        return theme_controller.single(slug)
     end
 end)
 
