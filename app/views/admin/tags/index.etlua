@@ -1,0 +1,81 @@
+<div class="page-header">
+    <h1>🏷️ タグ管理</h1>
+</div>
+
+<% if error_message then %>
+    <div class="alert alert-danger"><%= error_message %></div>
+<% end %>
+
+<div class="form-row">
+    <!-- 新規タグ作成フォーム -->
+    <div class="form-main">
+        <div class="card">
+            <div class="card-header">新規タグを追加</div>
+            <div class="card-body">
+                <form method="POST" action="/admin/tags">
+                    <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+                    
+                    <div class="form-group">
+                        <label for="name">名前</label>
+                        <input type="text" id="name" name="name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="slug">スラッグ</label>
+                        <input type="text" id="slug" name="slug" class="form-control">
+                        <small class="form-text">URLで使用される名前（省略可、自動生成されます）</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">説明</label>
+                        <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">タグを追加</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- タグ一覧 -->
+    <div class="form-sidebar">
+        <div class="card">
+            <div class="card-header">タグ一覧</div>
+            <div class="card-body">
+                <% if tags and #tags > 0 then %>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>名前</th>
+                                <th>投稿数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% for _, tag in ipairs(tags) do %>
+                                <tr>
+                                    <td>
+                                        <strong><%= tag.name %></strong>
+                                        <% if tag.slug then %>
+                                            <br><small class="text-muted"><%= tag.slug %></small>
+                                        <% end %>
+                                    </td>
+                                    <td><%= tag.post_count or 0 %></td>
+                                    <td>
+                                        <form method="POST" action="/admin/tags/<%= tag.id %>/delete" style="display:inline;">
+                                            <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                    onclick="return confirm('本当に削除しますか？')">削除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <% end %>
+                        </tbody>
+                    </table>
+                <% else %>
+                    <p class="text-muted">タグがありません</p>
+                <% end %>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,107 @@
+<!-- ヘッダーセクション -->
+<div class="page-header">
+    <h1>📝 投稿管理</h1>
+    <div class="page-actions">
+        <a href="/admin/posts/new" class="btn btn-primary">新規投稿を作成</a>
+    </div>
+</div>
+
+<!-- ステータスフィルター -->
+<div class="filter-bar">
+    <a href="/admin/posts?status=all" class="filter-link <%= status_filter == 'all' and 'active' or '' %>">
+        すべて (<%= total_count %>)
+    </a>
+    <a href="/admin/posts?status=published" class="filter-link <%= status_filter == 'published' and 'active' or '' %>">
+        公開済み
+    </a>
+    <a href="/admin/posts?status=draft" class="filter-link <%= status_filter == 'draft' and 'active' or '' %>">
+        下書き
+    </a>
+    <a href="/admin/posts?status=trash" class="filter-link <%= status_filter == 'trash' and 'active' or '' %>">
+        ゴミ箱
+    </a>
+</div>
+
+<!-- 投稿テーブル -->
+<div class="card">
+    <% if posts and #posts > 0 then %>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>タイトル</th>
+                    <th>著者</th>
+                    <th>カテゴリー</th>
+                    <th>タグ</th>
+                    <th>ステータス</th>
+                    <th>日付</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% for _, post in ipairs(posts) do %>
+                    <tr>
+                        <td>
+                            <strong><a href="/admin/posts/<%= post.id %>/edit"><%= post.title %></a></strong>
+                        </td>
+                        <td><%= post.author_id %></td>
+                        <td>
+                            <% if post.categories and #post.categories > 0 then %>
+                                <% for i, cat in ipairs(post.categories) do %>
+                                    <%= cat.name %><%= i < #post.categories and ', ' or '' %>
+                                <% end %>
+                            <% else %>
+                                <span class="text-muted">未分類</span>
+                            <% end %>
+                        </td>
+                        <td>
+                            <% if post.tags and #post.tags > 0 then %>
+                                <% for i, tag in ipairs(post.tags) do %>
+                                    <%= tag.name %><%= i < #post.tags and ', ' or '' %>
+                                <% end %>
+                            <% else %>
+                                <span class="text-muted">-</span>
+                            <% end %>
+                        </td>
+                        <td>
+                            <% if post.status == "published" then %>
+                                <span class="badge badge-success">公開</span>
+                            <% elseif post.status == "draft" then %>
+                                <span class="badge badge-secondary">下書き</span>
+                            <% else %>
+                                <span class="badge badge-danger"><%= post.status %></span>
+                            <% end %>
+                        </td>
+                        <td>
+                            <%= post.created_at and tostring(post.created_at):sub(1, 10) or '-' %>
+                        </td>
+                        <td>
+                            <a href="/admin/posts/<%= post.id %>/edit" class="btn btn-sm btn-primary">編集</a>
+                            <form method="POST" action="/admin/posts/<%= post.id %>/delete" style="display:inline;">
+                                <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('本当に削除しますか？')">削除</button>
+                            </form>
+                        </td>
+                    </tr>
+                <% end %>
+            </tbody>
+        </table>
+        
+        <!-- ページネーション -->
+        <% if total_pages > 1 then %>
+            <div class="pagination">
+                <% for i = 1, total_pages do %>
+                    <a href="/admin/posts?page=<%= i %>&status=<%= status_filter %>" 
+                       class="page-link <%= i == page and 'active' or '' %>">
+                        <%= i %>
+                    </a>
+                <% end %>
+            </div>
+        <% end %>
+    <% else %>
+        <div class="empty-state">
+            <div style="font-size: 48px; margin-bottom: 15px;">📝</div>
+            <p>投稿が見つかりませんでした</p>
+            <a href="/admin/posts/new" class="btn btn-primary">新規投稿を作成</a>
+        </div>
+    <% end %>
+</div>

@@ -68,7 +68,20 @@ end
 
 function _M.the_content(more_link_text)
     if _M.current_post then
-        ngx.print(_M.current_post.content or "")
+        local content = _M.current_post.content or ""
+        
+        -- Markdownをレンダリング
+        local ok, markdown = pcall(require, "utils.markdown")
+        if ok then
+            content = markdown.render_markdown(content)
+            ngx.log(ngx.INFO, "[the_content] Markdownレンダリング成功")
+        else
+            -- Markdownモジュールが読み込めない場合は、wpautopで処理
+            ngx.log(ngx.WARN, "[the_content] Markdownモジュール読み込み失敗: ", tostring(markdown))
+            content = _M.wpautop(content)
+        end
+        
+        ngx.print(content)
     end
 end
 
@@ -410,7 +423,8 @@ end
 function _M.get_bloginfo(show)
     show = show or "name"
     
-    local info = {
+    -- デフォルト値
+    local defaults = {
         name = "LuaAIDiary",
         description = "Lua製高性能ブログシステム",
         url = _M.home_url(),
@@ -419,7 +433,39 @@ function _M.get_bloginfo(show)
         language = "ja",
     }
     
-    return info[show] or ""
+    -- user_settingsから設定を取得（管理者ユーザーID=1）
+    local ok, UserSettings = pcall(require, "models.user_settings")
+    ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: pcall result=", ok)
+    
+    if ok then
+        -- 管理者の設定を取得
+        local settings, err = UserSettings.get_settings(1)
+        ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: settings=", settings and "exists" or "nil", ", err=", err or "nil")
+        
+        if settings then
+            -- preferencesを取得
+            local preferences, pref_err = UserSettings.get_preferences(1)
+            ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: preferences=", preferences and "exists" or "nil")
+            
+            if preferences then
+                ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: blog_title=", preferences.blog_title or "nil")
+                ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: blog_description=", preferences.blog_description or "nil")
+                
+                -- preferencesからサイト設定を取得（キー名はblog_title, blog_description）
+                if preferences.blog_title and preferences.blog_title ~= "" then
+                    defaults.name = preferences.blog_title
+                    ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: Updated name to: ", defaults.name)
+                end
+                if preferences.blog_description and preferences.blog_description ~= "" then
+                    defaults.description = preferences.blog_description
+                    ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: Updated description to: ", defaults.description)
+                end
+            end
+        end
+    end
+    
+    ngx.log(ngx.ERR, "[DEBUG] get_bloginfo: Returning ", show, "=", defaults[show] or "")
+    return defaults[show] or ""
 end
 
 function _M.wp_title(separator, display, seplocation)
@@ -599,6 +645,63 @@ function _M.escape_html(str)
     str = string.gsub(str, '"', "&quot;")
     str = string.gsub(str, "'", "&#39;")
     return str
+end
+
+-- 改行を段落とbrタグに変換（WordPress wpautop相当の簡易版）
+function _M.wpautop(text)
+    if not text or text == "" then return "" end
+    
+    -- 既存のHTMLタグがある場合はそのまま返す
+    if text:match("<p>") or text:match("<div>") or text:match("<br") then
+        return text
+    end
+    
+    -- エスケープされた改行を実際の改行に戻す（ngx.quote_sql_strの影響を修正）
+    text = text:gsub("\\r\\n", "\n")  -- エスケープされたWindows改行
+    text = text:gsub("\\n", "\n")     -- エスケープされたUnix改行
+    text = text:gsub("\\r", "\n")     -- エスケープされたMac改行
+    
+    -- テキストを正規化
+    text = text:gsub("\r\n", "\n")  -- Windows改行をUnix改行に統一
+    text = text:gsub("\r", "\n")    -- Mac改行をUnix改行に統一
+    text = text:gsub("[ \t]+\n", "\n")  -- 行末の空白を削除
+    text = text:gsub("\n\n+", "\n\n")  -- 3つ以上の連続改行を2つに
+    
+    -- 段落に分割
+    local paragraphs = {}
+    local current_para = ""
+    
+    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+        if line:match("^%s*$") then
+            -- 空行の場合、現在の段落を保存
+            if current_para ~= "" then
+                -- 段落内の改行を<br>に変換
+                current_para = current_para:gsub("\n", "<br>\n")
+                table.insert(paragraphs, "<p>" .. current_para .. "</p>")
+                current_para = ""
+            end
+        else
+            -- 空行でない場合、現在の段落に追加
+            if current_para ~= "" then
+                current_para = current_para .. "\n" .. line
+            else
+                current_para = line
+            end
+        end
+    end
+    
+    -- 最後の段落を処理
+    if current_para ~= "" then
+        current_para = current_para:gsub("\n", "<br>\n")
+        table.insert(paragraphs, "<p>" .. current_para .. "</p>")
+    end
+    
+    -- 段落がない場合
+    if #paragraphs == 0 then
+        return "<p>" .. text .. "</p>"
+    end
+    
+    return table.concat(paragraphs, "\n\n")
 end
 
 function _M.auto_excerpt(content, length)

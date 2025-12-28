@@ -6,13 +6,18 @@ function template.render(context)
     local posts = context.posts or {}
     local query = context.query or {}
     
-    table.insert(output, [[
+    -- wp_functionsを読み込む
+    local wp = require("theme_engine.wp_functions")
+    local blog_title = wp.get_bloginfo("name")
+    local blog_description = wp.get_bloginfo("description")
+    
+    table.insert(output, string.format([[
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LuaAIDiary</title>
+    <title>%s</title>
     <style>
         body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         .post { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
@@ -23,11 +28,11 @@ function template.render(context)
 </head>
 <body>
     <header>
-        <h1>LuaAIDiary</h1>
-        <p>AIと共に記録する日記システム</p>
+        <h1>%s</h1>
+        <p>%s</p>
     </header>
     <main>
-]])
+]], blog_title, blog_title, blog_description))
     
     if #posts > 0 then
         for i, post in ipairs(posts) do

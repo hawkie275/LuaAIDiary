@@ -42,6 +42,12 @@ function template.render(context)
         .post-footer { border-top: 1px solid #ddd; padding-top: 20px; margin-top: 40px; }
         .back-link { display: inline-block; margin-top: 20px; color: #0066cc; text-decoration: none; }
         .back-link:hover { text-decoration: underline; }
+        
+        /* テーブルスタイル */
+        .post-content table { border-collapse: collapse; width: 100%%; margin: 20px 0; }
+        .post-content th, .post-content td { border: 1px solid #ddd; padding: 8px 12px; }
+        .post-content th { background-color: #f5f5f5; font-weight: bold; }
+        .post-content tr:nth-child(even) { background-color: #f9f9f9; }
     </style>
 </head>
 <body>
@@ -67,7 +73,13 @@ function template.render(context)
         <div class="post-content">
 ]])
     
-    table.insert(output, post.content or "")
+    -- Markdownをレンダリング
+    local content = post.content or ""
+    local ok, markdown = pcall(require, "utils.markdown")
+    if ok and content ~= "" then
+        content = markdown.render_markdown(content)
+    end
+    table.insert(output, content)
     
     table.insert(output, [[
 
