@@ -30,6 +30,9 @@ local category_controller = require("controllers.category_controller")
 -- タグコントローラーの初期化
 local tag_controller = require("controllers.tag_controller")
 
+-- 管理画面コントローラーの初期化
+local admin_controller = require("controllers.admin_controller")
+
 -- CSRFミドルウェアの初期化
 local csrf = require("middleware.csrf")
 
@@ -335,6 +338,35 @@ end)
 -- タグ削除
 app:delete("/api/tags/:id", function(self)
     return tag_controller.delete(self.params.id)
+end)
+
+-- ========================================
+-- 管理画面エンドポイント
+-- ========================================
+
+-- 管理画面ログインフォーム
+app:get("/admin/login", function(self)
+    return auth_controller.login_form(self)
+end)
+
+-- 管理画面ログイン処理
+app:post("/admin/login", function(self)
+    return auth_controller.login(self)
+end)
+
+-- ログアウト処理（フォームからPOST）
+app:post("/auth/logout", function(self)
+    return auth_controller.logout()
+end)
+
+-- 管理画面トップ（ダッシュボードにリダイレクト）
+app:match("/admin", function(self)
+    return { redirect_to = "/admin/dashboard" }
+end)
+
+-- 管理画面ダッシュボード
+app:get("/admin/dashboard", function(self)
+    return admin_controller.dashboard(self)
 end)
 
 -- 404エラーハンドリング

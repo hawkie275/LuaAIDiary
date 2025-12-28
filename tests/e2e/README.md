@@ -13,6 +13,39 @@ E2Eテストは以下の特徴を持ちます：
 
 ## 実装済みテスト
 
+### 管理画面ダッシュボード E2Eテスト (`test_admin_dashboard.sh`)
+
+実際のHTTPリクエストで管理画面の動作をテストします：
+
+#### 1. 認証チェックテスト
+- ✅ 未認証でのアクセス → リダイレクトまたは401エラー
+- ✅ 管理者ユーザーでログイン → セッション確立
+- ✅ 認証状態チェック → ユーザー情報確認
+- ✅ CSRFトークン取得
+
+#### 2. ダッシュボードアクセステスト
+- ✅ `GET /admin` → 302リダイレクト（/admin/dashboard へ）
+- ✅ `GET /admin/dashboard` → 200 OK、HTMLレスポンス
+
+#### 3. レスポンス内容の検証
+- ✅ HTMLタイトル、ヘッダー、フッターの存在確認
+- ✅ 統計情報カードの表示確認（投稿、カテゴリー、タグ、ユーザー）
+- ✅ 最近の投稿テーブルの表示確認
+- ✅ ナビゲーションメニューの表示確認
+
+#### 4. 権限チェックのテスト
+- ✅ admin ロール → アクセス成功（200 OK）
+- ✅ editor ロール → アクセス成功（200 OK）※要ロール変更
+- ✅ author ロール → 403エラー
+- ✅ subscriber ロール → 403エラー
+
+#### 5. ログアウトテスト
+- ✅ ログアウト → セッション破棄
+- ✅ ログアウト後のアクセス → 401エラー
+
+#### 6. クリーンアップ
+- ✅ テストユーザー情報の表示（手動削除用）
+
 ### 投稿API E2Eテスト (`test_post_api.sh`)
 
 実際のHTTPリクエストで以下のシナリオをテストします：
@@ -69,9 +102,14 @@ make test-e2e
 
 # または直接スクリプトを実行
 ./tests/e2e/test_post_api.sh
+./tests/e2e/test_category_tag_api.sh
+./tests/e2e/test_admin_dashboard.sh
 
 # カスタムURLを指定
 BASE_URL=http://localhost:8080 ./tests/e2e/test_post_api.sh
+
+# 管理画面テストで管理者ユーザーを指定
+ADMIN_USER=admin ADMIN_PASS=your_password ./tests/e2e/test_admin_dashboard.sh
 ```
 
 ### すべてのテストを実行
@@ -211,6 +249,24 @@ BASE_URL=http://localhost:3000 ./tests/e2e/test_post_api.sh
 
 # リモート環境でテスト
 BASE_URL=https://staging.example.com ./tests/e2e/test_post_api.sh
+```
+
+### ADMIN_USER / ADMIN_PASS
+
+管理画面テスト用の管理者ユーザー情報：
+
+```bash
+# デフォルト: admin / admin_password
+ADMIN_USER=admin ADMIN_PASS=admin_password ./tests/e2e/test_admin_dashboard.sh
+
+# カスタム管理者ユーザーでテスト
+ADMIN_USER=myadmin ADMIN_PASS=mypassword ./tests/e2e/test_admin_dashboard.sh
+
+# 環境変数をまとめて指定
+BASE_URL=http://localhost:8080 \
+ADMIN_USER=admin \
+ADMIN_PASS=admin_password \
+./tests/e2e/test_admin_dashboard.sh
 ```
 
 ## 統合テストとの違い

@@ -5,6 +5,8 @@ local cjson = require("cjson")
 local AuthService = require("services.auth_service")
 local Session = require("utils.session")
 local validator = require("utils.validator")
+local csrf = require("middleware.csrf")
+local etlua = require("etlua")
 
 local AuthController = {}
 
@@ -118,50 +120,159 @@ function AuthController.register()
   }, 201)
 end
 
+-- ログインフォーム表示エンドポイント
+-- GET /admin/login
+function AuthController.login_form(self)
+  -- セッションを開始
+  local session = Session.new()
+  local ok = session:start()
+  
+  -- 既にログイン済みの場合はダッシュボードにリダイレクト
+  if ok and session:is_authenticated() then
+    return {
+      redirect_to = "/admin/dashboard",
+      status = 302
+    }
+  end
+  
+  -- セッションが無効な場合は新規作成
+  if not ok then
+    session = Session.new()
+    session:start()
+  end
+  
+  -- CSRFトークンを生成
+  local csrf_token, err = csrf.get_token(session)
+  if not csrf_token then
+    ngx.log(ngx.ERR, "CSRFトークン生成エラー: ", err or "unknown")
+    csrf_token = ""
+  end
+  
+  -- リダイレクト先を取得（クエリパラメータから）
+  local redirect_to = self.params.redirect or "/admin/dashboard"
+  
+  -- テンプレートファイルを読み込む
+  local template_path = "/app/views/auth/login.etlua"
+  local template_file = io.open(template_path, "r")
+  if not template_file then
+    ngx.log(ngx.ERR, "テンプレートファイルが見つかりません: ", template_path)
+    ngx.status = 500
+    return "テンプレートファイルが見つかりません"
+  end
+  local template_content = template_file:read("*all")
+  template_file:close()
+  
+  -- テンプレートをコンパイル
+  local template = etlua.compile(template_content)
+  
+  -- テンプレートデータ
+  local data = {
+    csrf_token = csrf_token,
+    redirect_to = redirect_to,
+    error_message = self.params.error or nil
+  }
+  
+  -- テンプレートをレンダリング
+  local html = template(data)
+  
+  -- HTMLレスポンスを返す
+  self.res.headers["Content-Type"] = "text/html; charset=utf-8"
+  return html
+end
+
 -- ログインエンドポイント
--- POST /api/auth/login
-function AuthController.login()
-  -- JSONボディを取得
-  local data, err = get_json_body()
-  if not data then
-    return json_response({
-      success = false,
-      error = err or "Invalid request"
-    }, 400)
+-- POST /api/auth/login (JSON API)
+-- POST /admin/login (HTML Form)
+function AuthController.login(self)
+  -- Content-TypeをチェックしてJSON APIかHTMLフォームかを判定
+  local content_type = ngx.req.get_headers()["content-type"] or ""
+  local is_json_request = content_type:find("application/json") ~= nil
+  
+  -- データを取得
+  local username_or_email, password, redirect_to
+  local data
+  
+  if is_json_request then
+    -- JSON APIの場合
+    local err
+    data, err = get_json_body()
+    if not data then
+      return json_response({
+        success = false,
+        error = err or "Invalid request"
+      }, 400)
+    end
+    
+    username_or_email = data.username_or_email or data.username or data.email
+    password = data.password
+  else
+    -- HTMLフォームの場合
+    username_or_email = self.params.username_or_email
+    password = self.params.password
+    redirect_to = self.params.redirect or "/admin/dashboard"
   end
-
-  -- 入力検証（username、email、username_or_emailのいずれかを受け入れる）
-  local username_or_email = data.username_or_email or data.username or data.email
+  
+  -- 入力検証
   if not username_or_email or username_or_email == "" then
-    return json_response({
-      success = false,
-      error = "Username or email is required"
-    }, 400)
+    if is_json_request then
+      return json_response({
+        success = false,
+        error = "Username or email is required"
+      }, 400)
+    else
+      return {
+        redirect_to = "/admin/login?error=" .. ngx.escape_uri("ユーザー名またはメールアドレスが必要です"),
+        status = 302
+      }
+    end
   end
 
-  if not data.password or data.password == "" then
-    return json_response({
-      success = false,
-      error = "Password is required"
-    }, 400)
+  if not password or password == "" then
+    if is_json_request then
+      return json_response({
+        success = false,
+        error = "Password is required"
+      }, 400)
+    else
+      return {
+        redirect_to = "/admin/login?error=" .. ngx.escape_uri("パスワードが必要です"),
+        status = 302
+      }
+    end
   end
 
   -- ログイン処理
-  local result, err = AuthService.login(username_or_email, data.password)
+  local result, err = AuthService.login(username_or_email, password)
   if not result then
-    return json_response({
-      success = false,
-      error = err or "Login failed"
-    }, 401)
+    if is_json_request then
+      return json_response({
+        success = false,
+        error = err or "Login failed"
+      }, 401)
+    else
+      return {
+        redirect_to = "/admin/login?error=" .. ngx.escape_uri("ユーザー名またはパスワードが正しくありません"),
+        status = 302
+      }
+    end
   end
 
-  return json_response({
-    success = true,
-    data = {
-      user = result.user
-    },
-    message = "Login successful"
-  })
+  -- ログイン成功
+  if is_json_request then
+    return json_response({
+      success = true,
+      data = {
+        user = result.user
+      },
+      message = "Login successful"
+    })
+  else
+    -- HTMLフォームの場合はリダイレクト
+    return {
+      redirect_to = redirect_to,
+      status = 302
+    }
+  end
 end
 
 -- ログアウトエンドポイント

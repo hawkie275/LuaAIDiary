@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - LuaAIDiary</title>
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <style>
+        /* ログインページ専用スタイル */
+        .login-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+
+        .login-card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .login-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .login-form {
+            margin-top: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.1);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px 20px;
+            background-color: var(--primary-color);
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn-login:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-login:active {
+            transform: translateY(1px);
+        }
+
+        .login-footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .login-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .login-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .alert {
+            padding: 12px 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            border-left: 4px solid var(--error-color);
+            color: #721c24;
+        }
+
+        .alert-icon {
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <div class="login-container">
+            <div class="login-card">
+                <div class="login-header">
+                    <div class="login-logo">📝</div>
+                    <h1 class="login-title">LuaAIDiary</h1>
+                    <p class="login-subtitle">管理画面へログイン</p>
+                </div>
+
+                <!-- エラーメッセージ表示 -->
+                <% if error_message then %>
+                    <div class="alert alert-error">
+                        <span class="alert-icon">⚠</span>
+                        <span><%= error_message %></span>
+                    </div>
+                <% end %>
+
+                <!-- ログインフォーム -->
+                <form method="POST" action="/admin/login" class="login-form">
+                    <!-- CSRFトークン -->
+                    <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+                    
+                    <!-- リダイレクト先パラメータ -->
+                    <% if redirect_to then %>
+                        <input type="hidden" name="redirect" value="<%= redirect_to %>">
+                    <% end %>
+
+                    <!-- ユーザー名/メールアドレス入力 -->
+                    <div class="form-group">
+                        <label for="username_or_email" class="form-label">ユーザー名 または メールアドレス</label>
+                        <input 
+                            type="text" 
+                            id="username_or_email" 
+                            name="username_or_email" 
+                            class="form-input" 
+                            required 
+                            autofocus
+                            placeholder="ユーザー名またはメールアドレスを入力"
+                        >
+                    </div>
+
+                    <!-- パスワード入力 -->
+                    <div class="form-group">
+                        <label for="password" class="form-label">パスワード</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            class="form-input" 
+                            required
+                            placeholder="パスワードを入力"
+                        >
+                    </div>
+
+                    <!-- ログインボタン -->
+                    <button type="submit" class="btn-login">ログイン</button>
+                </form>
+
+                <div class="login-footer">
+                    <p><a href="/">← トップページに戻る</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- フラッシュメッセージ自動非表示 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(function(alert) {
+                setTimeout(function() {
+                    alert.style.opacity = '0';
+                    alert.style.transition = 'opacity 0.3s';
+                    setTimeout(function() {
+                        alert.style.display = 'none';
+                    }, 300);
+                }, 5000);
+            });
+        });
+    </script>
+</body>
+</html>
