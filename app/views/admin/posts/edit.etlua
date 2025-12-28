@@ -1,0 +1,131 @@
+<div class="page-header">
+    <h1><%= is_new and '✍️ 新規投稿' or '✏️ 投稿を編集' %></h1>
+</div>
+
+<% if error_message then %>
+    <div class="alert alert-danger"><%= error_message %></div>
+<% end %>
+
+<form method="POST" action="<%= is_new and '/admin/posts' or ('/admin/posts/' .. post.id) %>" class="post-form">
+    <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+    
+    <div class="form-row">
+        <!-- メインエディタエリア -->
+        <div class="form-main">
+            <div class="form-group">
+                <label for="title">タイトル</label>
+                <input type="text" id="title" name="title" class="form-control form-control-lg" 
+                       value="<%= post and post.title or '' %>" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="content">本文</label>
+                <div class="editor-preview-container">
+                    <div class="editor-pane">
+                        <textarea id="content" name="content" class="form-control" rows="20" required><%- post and post.content or '' %></textarea>
+                        <small class="form-text">Markdown記法が使用できます</small>
+                    </div>
+                    <div class="preview-pane">
+                        <div class="preview-header">👁️ プレビュー</div>
+                        <div id="preview-area" class="preview-content">
+                            <p class="text-muted">本文を入力するとプレビューが表示されます</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="excerpt">抜粋</label>
+                <textarea id="excerpt" name="excerpt" class="form-control" rows="3"><%- post and post.excerpt or '' %></textarea>
+                <small class="form-text">記事の要約を入力してください（省略可）</small>
+            </div>
+        </div>
+        
+        <!-- サイドバー -->
+        <div class="form-sidebar">
+            <!-- 公開設定 -->
+            <div class="card">
+                <div class="card-header">📤 公開設定</div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="status">ステータス</label>
+                        <select id="status" name="status" class="form-control">
+                            <option value="draft" <%= (not post or post.status == 'draft') and 'selected' or '' %>>下書き</option>
+                            <option value="published" <%= (post and post.status == 'published') and 'selected' or '' %>>公開</option>
+                            <option value="trash" <%= (post and post.status == 'trash') and 'selected' or '' %>>ゴミ箱</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <%= is_new and '投稿を作成' or '更新' %>
+                        </button>
+                        <a href="/admin/posts" class="btn btn-secondary btn-block">キャンセル</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- カテゴリー -->
+            <div class="card">
+                <div class="card-header">📁 カテゴリー</div>
+                <div class="card-body">
+                    <% if categories and #categories > 0 then %>
+                        <% 
+                        local selected_cat_ids = {}
+                        if post and post.categories then
+                            for _, cat in ipairs(post.categories) do
+                                selected_cat_ids[cat.id] = true
+                            end
+                        end
+                        %>
+                        <% for _, category in ipairs(categories) do %>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input"
+                                       id="cat_<%= category.id %>"
+                                       name="category_ids[]"
+                                       value="<%= category.id %>"
+                                       <%= selected_cat_ids[category.id] and 'checked' or '' %>>
+                                <label class="form-check-label" for="cat_<%= category.id %>">
+                                    <%= category.name %>
+                                </label>
+                            </div>
+                        <% end %>
+                    <% else %>
+                        <p class="text-muted">カテゴリーがありません</p>
+                    <% end %>
+                </div>
+            </div>
+            
+            <!-- タグ -->
+            <div class="card">
+                <div class="card-header">🏷️ タグ</div>
+                <div class="card-body">
+                    <% if tags and #tags > 0 then %>
+                        <% 
+                        local selected_tag_ids = {}
+                        if post and post.tags then
+                            for _, tag in ipairs(post.tags) do
+                                selected_tag_ids[tag.id] = true
+                            end
+                        end
+                        %>
+                        <% for _, tag in ipairs(tags) do %>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input"
+                                       id="tag_<%= tag.id %>"
+                                       name="tag_ids[]"
+                                       value="<%= tag.id %>"
+                                       <%= selected_tag_ids[tag.id] and 'checked' or '' %>>
+                                <label class="form-check-label" for="tag_<%= tag.id %>">
+                                    <%= tag.name %>
+                                </label>
+                            </div>
+                        <% end %>
+                    <% else %>
+                        <p class="text-muted">タグがありません</p>
+                    <% end %>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

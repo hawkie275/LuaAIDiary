@@ -1,0 +1,81 @@
+<div class="page-header">
+    <h1>📁 カテゴリー管理</h1>
+</div>
+
+<% if error_message then %>
+    <div class="alert alert-danger"><%= error_message %></div>
+<% end %>
+
+<div class="form-row">
+    <!-- 新規カテゴリー作成フォーム -->
+    <div class="form-main">
+        <div class="card">
+            <div class="card-header">新規カテゴリーを追加</div>
+            <div class="card-body">
+                <form method="POST" action="/admin/categories">
+                    <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+                    
+                    <div class="form-group">
+                        <label for="name">名前</label>
+                        <input type="text" id="name" name="name" class="form-control" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="slug">スラッグ</label>
+                        <input type="text" id="slug" name="slug" class="form-control">
+                        <small class="form-text">URLで使用される名前（省略可、自動生成されます）</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">説明</label>
+                        <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">カテゴリーを追加</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- カテゴリー一覧 -->
+    <div class="form-sidebar">
+        <div class="card">
+            <div class="card-header">カテゴリー一覧</div>
+            <div class="card-body">
+                <% if categories and #categories > 0 then %>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>名前</th>
+                                <th>投稿数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% for _, category in ipairs(categories) do %>
+                                <tr>
+                                    <td>
+                                        <strong><%= category.name %></strong>
+                                        <% if category.slug then %>
+                                            <br><small class="text-muted"><%= category.slug %></small>
+                                        <% end %>
+                                    </td>
+                                    <td><%= category.post_count or 0 %></td>
+                                    <td>
+                                        <form method="POST" action="/admin/categories/<%= category.id %>/delete" style="display:inline;">
+                                            <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                    onclick="return confirm('本当に削除しますか？')">削除</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <% end %>
+                        </tbody>
+                    </table>
+                <% else %>
+                    <p class="text-muted">カテゴリーがありません</p>
+                <% end %>
+            </div>
+        </div>
+    </div>
+</div>

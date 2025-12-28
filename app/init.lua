@@ -65,6 +65,11 @@ app:get("/author/:username", function(self)
     return theme_controller.author(self.params.username)
 end)
 
+-- 単一投稿: /posts/:slug（具体的なルートを先に定義）
+app:get("/posts/:slug", function(self)
+    return theme_controller.single(self.params.slug)
+end)
+
 -- 日付アーカイブ: /:year/:month/:day
 app:get("/:year/:month/:day", function(self)
     local year = self.params.year
@@ -367,6 +372,111 @@ end)
 -- 管理画面ダッシュボード
 app:get("/admin/dashboard", function(self)
     return admin_controller.dashboard(self)
+end)
+
+-- ========================================
+-- 管理画面 - 投稿管理エンドポイント
+-- ========================================
+
+-- 投稿一覧
+app:get("/admin/posts", function(self)
+    return admin_controller.posts_index(self)
+end)
+
+-- 新規投稿フォーム
+app:get("/admin/posts/new", function(self)
+    return admin_controller.posts_new(self)
+end)
+
+-- 投稿作成
+app:post("/admin/posts", function(self)
+    return admin_controller.posts_create(self)
+end)
+
+-- 投稿編集フォーム
+app:get("/admin/posts/:id/edit", function(self)
+    return admin_controller.posts_edit(self)
+end)
+
+-- 投稿更新
+app:post("/admin/posts/:id", function(self)
+    return admin_controller.posts_update(self)
+end)
+
+-- 投稿削除
+app:post("/admin/posts/:id/delete", function(self)
+    return admin_controller.posts_delete(self)
+end)
+
+-- ========================================
+-- 管理画面 - カテゴリー管理エンドポイント
+-- ========================================
+
+-- カテゴリー管理ページ
+app:get("/admin/categories", function(self)
+    return admin_controller.categories_index(self)
+end)
+
+-- カテゴリー作成
+app:post("/admin/categories", function(self)
+    return admin_controller.categories_create(self)
+end)
+
+-- カテゴリー更新
+app:post("/admin/categories/:id", function(self)
+    return admin_controller.categories_update(self)
+end)
+
+-- カテゴリー削除
+app:post("/admin/categories/:id/delete", function(self)
+    return admin_controller.categories_delete(self)
+end)
+
+-- ========================================
+-- 管理画面 - タグ管理エンドポイント
+-- ========================================
+
+-- タグ管理ページ
+app:get("/admin/tags", function(self)
+    return admin_controller.tags_index(self)
+end)
+
+-- タグ作成
+app:post("/admin/tags", function(self)
+    return admin_controller.tags_create(self)
+end)
+
+-- タグ更新
+app:post("/admin/tags/:id", function(self)
+    return admin_controller.tags_update(self)
+end)
+
+-- タグ削除
+app:post("/admin/tags/:id/delete", function(self)
+    return admin_controller.tags_delete(self)
+end)
+
+-- ========================================
+-- 管理画面 - サイト設定エンドポイント
+-- ========================================
+
+-- サイト設定ページ
+app:get("/admin/settings", function(self)
+    return admin_controller.settings_index(self)
+end)
+
+-- サイト設定更新
+app:post("/admin/settings", function(self)
+    return admin_controller.settings_update(self)
+end)
+
+-- ========================================
+-- 管理画面 - Markdownプレビュー
+-- ========================================
+
+-- Markdownプレビュー
+app:post("/api/preview/markdown", function(self)
+    return admin_controller.preview_markdown(self)
 end)
 
 -- 404エラーハンドリング

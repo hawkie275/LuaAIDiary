@@ -2,8 +2,8 @@
 -- パスワード: admin123
 -- bcryptハッシュ (cost=10)
 
-UPDATE users 
-SET password_hash = '$2y$10$mF6xWl9K3vLZQN3Y8X3YHe3K6mYZ6X3Y8X3Y8X3Y8X3Y8X3Y8X3Y8O'
+UPDATE users
+SET password_hash = '$2b$10$Yt1OM2AKndiDQcVFgb5BTOPyUAmJUGnPCtkDS8ydVFlcxxQSgoPm.'
 WHERE username = 'admin';
 
 -- 注: このパスワードハッシュは一時的なものです

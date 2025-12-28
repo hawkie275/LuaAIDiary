@@ -1,0 +1,48 @@
+<div class="page-header">
+    <h1>⚙️ サイト設定</h1>
+</div>
+
+<% if success_message then %>
+    <div class="alert alert-success"><%= success_message %></div>
+<% end %>
+
+<% if error_message then %>
+    <div class="alert alert-danger"><%= error_message %></div>
+<% end %>
+
+<form method="POST" action="/admin/settings">
+    <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+    
+    <div class="card">
+        <div class="card-header">基本設定</div>
+        <div class="card-body">
+            <div class="form-group">
+                <label for="blog_title">ブログタイトル</label>
+                <input type="text" id="blog_title" name="blog_title" class="form-control" 
+                       value="<%= settings and settings.blog_title or 'LuaAIDiary' %>">
+            </div>
+            
+            <div class="form-group">
+                <label for="blog_description">ブログの説明</label>
+                <textarea id="blog_description" name="blog_description" class="form-control" rows="3"><%= settings and settings.blog_description or '' %></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">Gemini API設定</div>
+        <div class="card-body">
+            <div class="form-group">
+                <label for="gemini_api_key">Gemini APIキー</label>
+                <input type="password" id="gemini_api_key" name="gemini_api_key" class="form-control" 
+                       placeholder="APIキーを入力（変更する場合のみ入力してください）">
+                <small class="form-text">Google AI StudioでAPIキーを取得してください。空欄のままにすると既存の設定が保持されます。</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">設定を保存</button>
+        <a href="/admin/dashboard" class="btn btn-secondary">キャンセル</a>
+    </div>
+</form>

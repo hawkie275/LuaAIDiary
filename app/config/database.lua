@@ -180,8 +180,11 @@ function _M.escape(str)
         return "NULL"
     end
     
-    -- OpenRestyのngx.quote_sql_strを使用
-    return ngx.quote_sql_str(str)
+    -- PostgreSQL用のカスタムエスケープ処理
+    -- シングルクォートを''にエスケープし、全体をシングルクォートで囲む
+    -- 改行などの特殊文字はそのまま保持する（PostgreSQLは改行を含む文字列をサポート）
+    local escaped = str:gsub("'", "''")  -- シングルクォートをエスケープ
+    return "'" .. escaped .. "'"
 end
 
 return _M
