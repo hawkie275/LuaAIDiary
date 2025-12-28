@@ -390,7 +390,7 @@ if [ "$CATEGORY_ID_1" -gt 0 ]; then
   body=$(echo "$response" | head -n -1)
 
   if [ "$http_code" -eq 201 ]; then
-    POST_WITH_CATEGORY=$(echo "$body" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+    POST_WITH_CATEGORY=$(echo "$body" | jq -r '.post.id // .data.id // empty')
     # カテゴリーが含まれているか確認
     if echo "$body" | grep -q "\"categories\""; then
       print_pass "カテゴリー付き投稿作成成功 (ID: $POST_WITH_CATEGORY)"
@@ -417,7 +417,7 @@ if [ "$TAG_ID_1" -gt 0 ]; then
   body=$(echo "$response" | head -n -1)
 
   if [ "$http_code" -eq 201 ]; then
-    POST_WITH_TAG=$(echo "$body" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+    POST_WITH_TAG=$(echo "$body" | jq -r '.post.id // .data.id // empty')
     # タグが含まれているか確認
     if echo "$body" | grep -q "\"tags\""; then
       print_pass "タグ付き投稿作成成功 (ID: $POST_WITH_TAG)"
@@ -444,7 +444,7 @@ if [ "$CATEGORY_ID_1" -gt 0 ] && [ "$TAG_ID_1" -gt 0 ]; then
   body=$(echo "$response" | head -n -1)
 
   if [ "$http_code" -eq 201 ]; then
-    POST_WITH_BOTH=$(echo "$body" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+    POST_WITH_BOTH=$(echo "$body" | jq -r '.post.id // .data.id // empty')
     # 両方が含まれているか確認
     if echo "$body" | grep -q "\"categories\"" && echo "$body" | grep -q "\"tags\""; then
       print_pass "カテゴリー・タグ両方付き投稿作成成功 (ID: $POST_WITH_BOTH)"
