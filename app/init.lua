@@ -33,6 +33,9 @@ local tag_controller = require("controllers.tag_controller")
 -- 管理画面コントローラーの初期化
 local admin_controller = require("controllers.admin_controller")
 
+-- Geminiコントローラーの初期化
+local gemini_controller = require("controllers.gemini_controller")
+
 -- CSRFミドルウェアの初期化
 local csrf = require("middleware.csrf")
 
@@ -477,6 +480,49 @@ end)
 -- Markdownプレビュー
 app:post("/api/preview/markdown", function(self)
     return admin_controller.preview_markdown(self)
+end)
+
+-- ========================================
+-- Gemini API エンドポイント
+-- ========================================
+
+-- 記事生成
+app:post("/api/gemini/generate-article", function(self)
+    return gemini_controller.generate_article(self)
+end)
+
+-- AI校正
+app:post("/api/gemini/proofread", function(self)
+    return gemini_controller.proofread(self)
+end)
+
+-- API接続テスト
+app:post("/api/gemini/test-connection", function(self)
+    return gemini_controller.test_connection(self)
+end)
+
+-- ========================================
+-- AI設定API エンドポイント
+-- ========================================
+
+-- AI設定取得
+app:get("/api/settings/ai-preferences", function(self)
+    return admin_controller.get_ai_preferences(self)
+end)
+
+-- AI設定更新
+app:put("/api/settings/ai-preferences", function(self)
+    return admin_controller.update_ai_preferences(self)
+end)
+
+-- Gemini APIキー保存
+app:post("/api/settings/gemini-api-key", function(self)
+    return admin_controller.save_gemini_api_key(self)
+end)
+
+-- Gemini APIキー削除
+app:delete("/api/settings/gemini-api-key", function(self)
+    return admin_controller.delete_gemini_api_key(self)
 end)
 
 -- 404エラーハンドリング

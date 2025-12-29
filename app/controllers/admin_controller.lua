@@ -1195,14 +1195,236 @@ function AdminController.preview_markdown(self)
     end
     
     -- Markdownテキストを取得
-    local content = self.params.content or ""
+    local content = ""
+    
+    -- Content-Typeに応じて処理を分岐
+    local content_type = self.req.headers["content-type"] or ""
+    
+    if content_type:match("application/json") then
+        -- JSON形式のリクエスト
+        ngx.req.read_body()
+        local body = ngx.req.get_body_data()
+        if body then
+            local cjson = require("cjson.safe")
+            local data, decode_err = cjson.decode(body)
+            if data and data.content then
+                content = data.content
+            else
+                ngx.log(ngx.ERR, "JSONデコードエラー: ", decode_err or "不明")
+            end
+        end
+    else
+        -- URL-encoded形式のリクエスト（後方互換性のため）
+        content = self.params.content or ""
+    end
     
     -- Markdownライブラリを読み込んでレンダリング
-    local markdown = require("utils.markdown")
-    local html = markdown.render_markdown(content)
+    local html = ""
+    local success, render_result = pcall(function()
+        local markdown = require("utils.markdown")
+        return markdown.render_markdown(content)
+    end)
+    
+    if success then
+        html = render_result
+    else
+        ngx.log(ngx.ERR, "Markdownレンダリングエラー: ", render_result or "不明")
+        -- エラー時は元のテキストをHTMLエスケープして返す
+        html = "<pre>" .. (content:gsub("<", "&lt;"):gsub(">", "&gt;")) .. "</pre>"
+    end
     
     -- JSON形式でHTMLを返す
     return { json = { html = html } }
+end
+
+-- ========================================
+-- AI設定API
+-- ========================================
+
+-- AI設定取得
+-- GET /api/settings/ai-preferences
+function AdminController.get_ai_preferences(self)
+    -- 認証チェック
+    local user, session, err = get_authenticated_user()
+    if not user then
+        ngx.status = 401
+        return { json = { success = false, error = "認証が必要です" } }
+    end
+    
+    -- ユーザー設定を取得
+    local user_settings_record, err = UserSettings.get_settings(user.id)
+    if not user_settings_record then
+        ngx.status = 404
+        return { json = { success = false, error = err or "ユーザー設定が見つかりません" } }
+    end
+    
+    -- プリファレンスを取得
+    local preferences, pref_err = UserSettings.get_preferences(user.id)
+    if not preferences then
+        preferences = {}
+    end
+    
+    local ai_preferences = preferences.ai_preferences or {}
+    
+    -- APIキーの存在確認（値は返さない）
+    local has_api_key = user_settings_record.gemini_api_key and user_settings_record.gemini_api_key ~= ""
+    
+    return {
+        json = {
+            success = true,
+            data = {
+                ai_preferences = ai_preferences,
+                has_api_key = has_api_key
+            }
+        }
+    }
+end
+
+-- AI設定更新
+-- PUT /api/settings/ai-preferences
+function AdminController.update_ai_preferences(self)
+    -- 認証チェック
+    local user, session, err = get_authenticated_user()
+    if not user then
+        ngx.status = 401
+        return { json = { success = false, error = "認証が必要です" } }
+    end
+    
+    -- CSRFトークンの検証
+    local csrf_token = self.params.csrf_token or self.req.headers["x-csrf-token"]
+    if not csrf_token or csrf_token ~= session:get("csrf_token") then
+        ngx.status = 403
+        return { json = { success = false, error = "CSRFトークンが無効です" } }
+    end
+    
+    -- リクエストボディをJSONとしてパース
+    ngx.req.read_body()
+    local body = ngx.req.get_body_data()
+    if not body then
+        ngx.status = 400
+        return { json = { success = false, error = "リクエストボディが空です" } }
+    end
+    
+    local cjson = require("cjson.safe")
+    local data, decode_err = cjson.decode(body)
+    if not data then
+        ngx.status = 400
+        return { json = { success = false, error = "JSONのパースに失敗しました" } }
+    end
+    
+    -- プリファレンスを取得
+    local preferences, pref_err = UserSettings.get_preferences(user.id)
+    if not preferences then
+        preferences = {}
+    end
+    
+    -- AI設定を更新
+    preferences.ai_preferences = preferences.ai_preferences or {}
+    
+    if data.ai_preferences then
+        -- ai_preferencesオブジェクト全体が渡された場合
+        for k, v in pairs(data.ai_preferences) do
+            preferences.ai_preferences[k] = v
+        end
+    else
+        -- 個別フィールドが渡された場合
+        if data.default_tone then
+            preferences.ai_preferences.default_tone = data.default_tone
+        end
+        if data.default_target_audience then
+            preferences.ai_preferences.default_target_audience = data.default_target_audience
+        end
+        if data.auto_proofread ~= nil then
+            preferences.ai_preferences.auto_proofread = data.auto_proofread
+        end
+        if data.proofread_prompt then
+            preferences.ai_preferences.proofread_prompt = data.proofread_prompt
+        end
+        if data.generate_article_prompt then
+            preferences.ai_preferences.generate_article_prompt = data.generate_article_prompt
+        end
+        if data.custom_prompts then
+            preferences.ai_preferences.custom_prompts = data.custom_prompts
+        end
+    end
+    
+    -- 設定を保存
+    local ok, update_err = UserSettings.set_preferences(user.id, preferences)
+    if not ok then
+        ngx.status = 500
+        return { json = { success = false, error = update_err or "設定の更新に失敗しました" } }
+    end
+    
+    return { json = { success = true, message = "AI設定を更新しました" } }
+end
+
+-- Gemini APIキー保存
+-- POST /api/settings/gemini-api-key
+function AdminController.save_gemini_api_key(self)
+    -- 認証チェック
+    local user, session, err = get_authenticated_user()
+    if not user then
+        ngx.status = 401
+        return { json = { success = false, error = "認証が必要です" } }
+    end
+    
+    -- CSRFトークンの検証
+    local csrf_token = self.params.csrf_token or self.req.headers["x-csrf-token"]
+    if not csrf_token or csrf_token ~= session:get("csrf_token") then
+        ngx.status = 403
+        return { json = { success = false, error = "CSRFトークンが無効です" } }
+    end
+    
+    -- リクエストボディをJSONとしてパース
+    ngx.req.read_body()
+    local body = ngx.req.get_body_data()
+    if not body then
+        ngx.status = 400
+        return { json = { success = false, error = "リクエストボディが空です" } }
+    end
+    
+    local cjson = require("cjson.safe")
+    local data, decode_err = cjson.decode(body)
+    if not data or not data.api_key then
+        ngx.status = 400
+        return { json = { success = false, error = "APIキーが指定されていません" } }
+    end
+    
+    -- UserSettingsモデルのメソッドを使用してAPIキーを保存
+    local ok, save_err = UserSettings.set_gemini_api_key(user.id, data.api_key)
+    if not ok then
+        ngx.status = 500
+        return { json = { success = false, error = save_err or "APIキーの保存に失敗しました" } }
+    end
+    
+    return { json = { success = true, message = "APIキーを保存しました" } }
+end
+
+-- Gemini APIキー削除
+-- DELETE /api/settings/gemini-api-key
+function AdminController.delete_gemini_api_key(self)
+    -- 認証チェック
+    local user, session, err = get_authenticated_user()
+    if not user then
+        ngx.status = 401
+        return { json = { success = false, error = "認証が必要です" } }
+    end
+    
+    -- CSRFトークンの検証
+    local csrf_token = self.params.csrf_token or self.req.headers["x-csrf-token"]
+    if not csrf_token or csrf_token ~= session:get("csrf_token") then
+        ngx.status = 403
+        return { json = { success = false, error = "CSRFトークンが無効です" } }
+    end
+    
+    -- UserSettingsモデルのメソッドを使用してAPIキーを削除
+    local ok, delete_err = UserSettings.delete_gemini_api_key(user.id)
+    if not ok then
+        ngx.status = 500
+        return { json = { success = false, error = delete_err or "APIキーの削除に失敗しました" } }
+    end
+    
+    return { json = { success = true, message = "APIキーを削除しました" } }
 end
 
 return AdminController

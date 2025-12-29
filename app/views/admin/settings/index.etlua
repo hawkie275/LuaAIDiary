@@ -34,7 +34,7 @@
         <div class="card-body">
             <div class="form-group">
                 <label for="gemini_api_key">Gemini APIキー</label>
-                <input type="password" id="gemini_api_key" name="gemini_api_key" class="form-control" 
+                <input type="password" id="gemini_api_key" name="gemini_api_key" class="form-control"
                        placeholder="APIキーを入力（変更する場合のみ入力してください）">
                 <small class="form-text">Google AI StudioでAPIキーを取得してください。空欄のままにすると既存の設定が保持されます。</small>
             </div>
@@ -46,3 +46,136 @@
         <a href="/admin/dashboard" class="btn btn-secondary">キャンセル</a>
     </div>
 </form>
+
+<!-- AI機能設定セクション -->
+<section class="settings-section">
+    <h2>🤖 AI機能設定</h2>
+    
+    <form id="ai-settings-form">
+        <div class="card">
+            <div class="card-header">基本設定</div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="gemini-api-key">Gemini API キー:</label>
+                    <div class="input-group">
+                        <input type="password" id="gemini-api-key" class="form-control" placeholder="APIキーを入力" />
+                        <button type="button" id="btn-test-api" class="btn btn-info">接続テスト</button>
+                    </div>
+                    <small class="form-text">
+                        Google AI Studio (<a href="https://aistudio.google.com/app/apikey" target="_blank">https://aistudio.google.com/app/apikey</a>) から取得できます
+                    </small>
+                    <div id="api-test-result" style="margin-top: 10px;"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="gemini-model">使用モデル:</label>
+                    <select id="gemini-model" class="form-control">
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash（推奨・無料プラン対応）</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro（高精度・有料プラン推奨）</option>
+                        <option value="gemini-flash-latest">Gemini Flash Latest（常に最新版）</option>
+                        <option value="gemini-pro-latest">Gemini Pro Latest（常に最新版・有料プラン推奨）</option>
+                    </select>
+                    <small class="form-text text-muted">
+                        <strong>📌 重要:</strong> 無料プランをご利用の場合は、<strong>Gemini 2.5 Flash</strong>を選択してください。<br>
+                        Pro モデルは有料プランが必要です。詳細は<a href="https://ai.google.dev/pricing" target="_blank" rel="noopener">Google AI の料金ページ</a>をご確認ください。
+                    </small>
+                    <div id="model-warning" style="display: none; margin-top: 10px;"></div>
+                </div>
+                
+                <div class="model-info-box">
+                    <h4>📊 モデル比較</h4>
+                    <table class="model-comparison-table">
+                        <thead>
+                            <tr>
+                                <th>モデル</th>
+                                <th>特徴</th>
+                                <th>料金</th>
+                                <th>推奨用途</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Gemini 2.5 Flash</strong></td>
+                                <td>高速・軽量</td>
+                                <td>無料プラン対応</td>
+                                <td>日常的な校正・構成提案</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Gemini 2.5 Pro</strong></td>
+                                <td>高精度・詳細</td>
+                                <td>有料プラン推奨</td>
+                                <td>重要な記事の校正</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Flash Latest</strong></td>
+                                <td>常に最新のFlash</td>
+                                <td>無料プラン対応</td>
+                                <td>最新機能を試したい場合</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Pro Latest</strong></td>
+                                <td>常に最新のPro</td>
+                                <td>有料プラン推奨</td>
+                                <td>最高品質を求める場合</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="text-info">
+                        💡 <strong>ヒント:</strong> 初めての方やコストを抑えたい方は、<strong>Gemini 2.5 Flash</strong>から始めることをお勧めします。
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="default-tone">デフォルトトーン:</label>
+                    <select id="default-tone" class="form-control">
+                        <option value="formal">フォーマル</option>
+                        <option value="casual">カジュアル</option>
+                        <option value="technical">技術的</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="default-target-audience">デフォルト対象読者:</label>
+                    <select id="default-target-audience" class="form-control">
+                        <option value="初心者">初心者</option>
+                        <option value="中級者">中級者</option>
+                        <option value="上級者">上級者</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="auto-proofread" />
+                        記事保存時に自動校正を実行
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">カスタムプロンプト設定（上級者向け）</div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="proofread-prompt">校正用プロンプト:</label>
+                    <textarea id="proofread-prompt" class="form-control" rows="8"></textarea>
+                    <small class="form-text">
+                        プレースホルダー: {content}, {tone}
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="generate-article-prompt">記事生成用プロンプト:</label>
+                    <textarea id="generate-article-prompt" class="form-control" rows="8"></textarea>
+                    <small class="form-text">
+                        プレースホルダー: {topic}, {keywords}, {target_audience}, {word_count}, {tone}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="button" id="btn-reset-prompts" class="btn btn-warning">デフォルトに戻す</button>
+            <button type="submit" class="btn btn-primary">設定を保存</button>
+        </div>
+    </form>
+</section>
