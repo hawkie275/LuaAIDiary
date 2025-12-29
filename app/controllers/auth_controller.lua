@@ -421,4 +421,154 @@ function AuthController.check()
   })
 end
 
+-- パスワード変更フォーム表示エンドポイント
+-- GET /admin/change-password
+function AuthController.change_password_form(self)
+  -- セッションを開始
+  local session = Session.new()
+  local ok = session:start()
+  
+  -- 認証チェック（require_authミドルウェアで既にチェックされているはず）
+  if not ok or not session:is_authenticated() then
+    return {
+      redirect_to = "/admin/login?redirect=" .. ngx.escape_uri("/admin/change-password"),
+      status = 302
+    }
+  end
+  
+  -- CSRFトークンを生成
+  local csrf_token, err = csrf.get_token(session)
+  if not csrf_token then
+    ngx.log(ngx.ERR, "CSRFトークン生成エラー: ", err or "unknown")
+    csrf_token = ""
+  end
+  
+  -- テンプレートファイルを読み込む
+  local template_path = "/app/views/auth/change_password.etlua"
+  local template_file = io.open(template_path, "r")
+  if not template_file then
+    ngx.log(ngx.ERR, "テンプレートファイルが見つかりません: ", template_path)
+    ngx.status = 500
+    return "テンプレートファイルが見つかりません"
+  end
+  local template_content = template_file:read("*all")
+  template_file:close()
+  
+  -- テンプレートをコンパイル
+  local template = etlua.compile(template_content)
+  
+  -- テンプレートデータ
+  local data = {
+    csrf_token = csrf_token,
+    error_message = self.params.error or nil,
+    success_message = self.params.success or nil
+  }
+  
+  -- テンプレートをレンダリング
+  local html = template(data)
+  
+  -- HTMLレスポンスを返す
+  self.res.headers["Content-Type"] = "text/html; charset=utf-8"
+  return html
+end
+
+-- パスワード変更処理エンドポイント
+-- POST /admin/change-password
+function AuthController.change_password_submit(self)
+  -- セッションを取得
+  local session = Session.new()
+  local ok = session:start()
+  
+  -- 認証チェック
+  if not ok or not session:is_authenticated() then
+    return {
+      redirect_to = "/admin/login",
+      status = 302
+    }
+  end
+  
+  -- CSRFトークン検証
+  local csrf_valid, csrf_err = csrf.verify_token(self, session)
+  if not csrf_valid then
+    ngx.log(ngx.ERR, "CSRF検証失敗: ", csrf_err or "unknown")
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri("セキュリティトークンが無効です。再度お試しください。"),
+      status = 302
+    }
+  end
+  
+  -- フォームデータ取得
+  local current_password = self.params.current_password
+  local new_password = self.params.new_password
+  local confirm_password = self.params.confirm_password
+  
+  -- バリデーション: 必須フィールド
+  if not current_password or current_password == "" then
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri("現在のパスワードを入力してください"),
+      status = 302
+    }
+  end
+  
+  if not new_password or new_password == "" then
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri("新しいパスワードを入力してください"),
+      status = 302
+    }
+  end
+  
+  if not confirm_password or confirm_password == "" then
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri("新しいパスワード（確認）を入力してください"),
+      status = 302
+    }
+  end
+  
+  -- バリデーション: パスワード一致確認
+  if new_password ~= confirm_password then
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri("新しいパスワードと確認用パスワードが一致しません"),
+      status = 302
+    }
+  end
+  
+  -- バリデーション: パスワード長
+  if #new_password < 8 then
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri("新しいパスワードは8文字以上である必要があります"),
+      status = 302
+    }
+  end
+  
+  -- バリデーション: パスワード要件（英字+数字）
+  local has_letter = new_password:match("[a-zA-Z]")
+  local has_number = new_password:match("[0-9]")
+  if not has_letter or not has_number then
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri("新しいパスワードには英字と数字の両方を含める必要があります"),
+      status = 302
+    }
+  end
+  
+  -- パスワード変更処理
+  local user_id = session:get_user_id()
+  local success, err = AuthService.change_password(user_id, current_password, new_password)
+  
+  if not success then
+    return {
+      redirect_to = "/admin/change-password?error=" .. ngx.escape_uri(err or "パスワード変更に失敗しました"),
+      status = 302
+    }
+  end
+  
+  -- セッションを再生成（セキュリティのため）
+  session:regenerate()
+  
+  -- 成功メッセージとともにフォームを再表示
+  return {
+    redirect_to = "/admin/change-password?success=" .. ngx.escape_uri("パスワードが正常に変更されました"),
+    status = 302
+  }
+end
+
 return AuthController

@@ -362,6 +362,16 @@ app:post("/admin/login", function(self)
     return auth_controller.login(self)
 end)
 
+-- パスワード変更フォーム
+app:get("/admin/change-password", function(self)
+    return auth_controller.change_password_form(self)
+end)
+
+-- パスワード変更処理
+app:post("/admin/change-password", function(self)
+    return auth_controller.change_password_submit(self)
+end)
+
 -- ログアウト処理（フォームからPOST）
 app:post("/auth/logout", function(self)
     return auth_controller.logout(self)
