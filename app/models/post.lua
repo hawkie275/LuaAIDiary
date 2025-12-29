@@ -34,6 +34,11 @@ function _M.create_post(data)
     -- ユニークなスラッグを生成
     slug = slug_util.generate_unique_slug(slug, _M, nil)
     
+    -- 生成されたスラッグの妥当性を検証
+    if not slug or slug == "" then
+        return nil, "有効なスラッグを生成できませんでした"
+    end
+    
     -- 投稿データを準備
     local post_data = {
         title = data.title,
@@ -100,9 +105,23 @@ function _M.update_post(id, data)
         return false, err or "投稿が見つかりません"
     end
     
-    -- スラッグが変更された場合はユニークチェック
-    if data.slug and data.slug ~= post.slug then
+    -- スラッグを更新する場合
+    if data.slug ~= nil then
+        -- 空スラッグの場合はタイトルから生成
+        if data.slug == "" then
+            data.slug = slug_util.slugify(data.title or post.title)
+        end
+        
+        -- 予約語を回避
+        data.slug = slug_util.avoid_reserved(data.slug)
+        
+        -- ユニークなスラッグを生成
         data.slug = slug_util.generate_unique_slug(data.slug, _M, id)
+        
+        -- 生成されたスラッグの妥当性を検証
+        if not data.slug or data.slug == "" then
+            return false, "有効なスラッグを生成できませんでした"
+        end
     end
     
     -- ステータスが公開に変更された場合、公開日時を設定

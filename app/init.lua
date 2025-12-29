@@ -361,7 +361,7 @@ end)
 
 -- ログアウト処理（フォームからPOST）
 app:post("/auth/logout", function(self)
-    return auth_controller.logout()
+    return auth_controller.logout(self)
 end)
 
 -- 管理画面トップ（ダッシュボードにリダイレクト）
