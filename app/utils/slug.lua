@@ -34,14 +34,17 @@ local hiragana_to_romaji = {
 -- @param options オプション {max_length, separator, transliterate}
 -- @return スラッグ文字列
 function _M.slugify(str, options)
-    if not str or str == "" then
-        return ""
-    end
-    
     options = options or {}
     local max_length = options.max_length or 255
     local separator = options.separator or "-"
     local transliterate = options.transliterate ~= false  -- デフォルトはtrue
+    
+    -- nilまたは空文字列の場合は早期にフォールバック
+    if not str or str == "" then
+        local time_val = os.time()
+        local timestamp = tostring(time_val)
+        return "post-" .. timestamp
+    end
     
     -- 小文字に変換
     str = str:lower()
@@ -64,6 +67,14 @@ function _M.slugify(str, options)
     -- 先頭と末尾のセパレータを削除
     str = str:gsub("^" .. separator, "")
     str = str:gsub(separator .. "$", "")
+    
+    -- 空または意味のないスラッグのチェック（処理後に再確認）
+    if str == "" or #str < 2 then
+        -- フォールバック: タイムスタンプベースのスラッグ
+        local time_val = os.time()
+        local timestamp = tostring(time_val)
+        return "post-" .. timestamp
+    end
     
     -- 最大長に切り詰め
     if #str > max_length then
@@ -102,15 +113,25 @@ function _M.transliterate_japanese(str)
             local romaji = hiragana_to_romaji[utf8_char]
             
             if romaji then
+                -- ひらがなはローマ字に変換
                 result = result .. romaji
             else
-                -- ローマ字変換できない場合はそのまま
-                result = result .. utf8_char
+                -- カタカナ・漢字など：UTF-8バイト列を16進数文字列に変換
+                -- これにより各漢字が一意な文字列になる
+                local hex = ""
+                for j = i, i + 2 do
+                    hex = hex .. string.format("%02x", string.byte(str:sub(j, j)))
+                end
+                result = result .. hex
             end
             i = i + 3
         elseif byte >= 0xC0 and byte <= 0xDF then
-            -- 2バイト文字
-            result = result .. str:sub(i, i + 1)
+            -- 2バイト文字：16進数に変換
+            local hex = ""
+            for j = i, i + 1 do
+                hex = hex .. string.format("%02x", string.byte(str:sub(j, j)))
+            end
+            result = result .. hex
             i = i + 2
         else
             -- 1バイト文字（ASCII）

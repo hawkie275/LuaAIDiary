@@ -276,8 +276,13 @@ function AuthController.login(self)
 end
 
 -- ログアウトエンドポイント
--- POST /api/auth/logout
-function AuthController.logout()
+-- POST /api/auth/logout (JSON API)
+-- POST /auth/logout (HTML Form)
+function AuthController.logout(self)
+  -- Content-TypeをチェックしてJSON APIかHTMLフォームかを判定
+  local content_type = ngx.req.get_headers()["content-type"] or ""
+  local is_json_request = content_type:find("application/json") ~= nil
+  
   -- セッションを取得
   local session = Session.new()
   local ok = session:start()
@@ -287,10 +292,20 @@ function AuthController.logout()
     AuthService.logout(session)
   end
 
-  return json_response({
-    success = true,
-    message = "Logout successful"
-  })
+  -- レスポンスの返却
+  if is_json_request then
+    -- JSON APIの場合
+    return json_response({
+      success = true,
+      message = "Logout successful"
+    })
+  else
+    -- HTMLフォームの場合はログイン画面にリダイレクト
+    return {
+      redirect_to = "/admin/login",
+      status = 302
+    }
+  end
 end
 
 -- 現在のユーザー情報取得エンドポイント
