@@ -143,6 +143,13 @@
         <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">ブログの設定を変更</p>
         <a href="/admin/settings" class="btn btn-secondary">設定する</a>
     </div>
+    
+    <div class="card" style="text-align: center; padding: 30px;">
+        <div style="font-size: 36px; margin-bottom: 15px;">🔐</div>
+        <h3 style="margin-bottom: 10px; font-size: 16px;">パスワード変更</h3>
+        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px;">アカウントのパスワードを変更</p>
+        <a href="/admin/change-password" class="btn btn-secondary">変更する</a>
+    </div>
 </div>
 
 <!-- システム情報 -->
