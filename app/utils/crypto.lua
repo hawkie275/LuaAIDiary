@@ -20,6 +20,30 @@ local function normalize_key(key)
     return key
 end
 
+-- Hex文字列をバイナリに変換
+local function from_hex(hex_str)
+    if not hex_str or hex_str == "" then
+        return nil
+    end
+    
+    -- Hex文字列の長さが偶数であることを確認
+    if #hex_str % 2 ~= 0 then
+        return nil
+    end
+    
+    local result = {}
+    for i = 1, #hex_str, 2 do
+        local byte_str = hex_str:sub(i, i + 1)
+        local byte_val = tonumber(byte_str, 16)
+        if not byte_val then
+            return nil
+        end
+        table.insert(result, string.char(byte_val))
+    end
+    
+    return table.concat(result)
+end
+
 -- ========================================
 -- 暗号化・復号化
 -- ========================================
@@ -70,7 +94,7 @@ function _M.decrypt(ciphertext, key)
     key = normalize_key(key or MASTER_KEY)
     
     -- Hexからバイナリに変換
-    local combined = resty_string.from_hex(ciphertext)
+    local combined = from_hex(ciphertext)
     if not combined then
         return nil, "Hex変換に失敗しました"
     end

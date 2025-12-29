@@ -126,6 +126,106 @@
                     <% end %>
                 </div>
             </div>
+            
+            <!-- AIアシスタントパネル -->
+            <div class="card">
+                <div class="card-header">🤖 AI アシスタント</div>
+                <div class="card-body">
+                    <button type="button" id="btn-generate-article" class="btn btn-primary btn-block mb-2">
+                        📝 AI記事生成
+                    </button>
+                    
+                    <button type="button" id="btn-proofread" class="btn btn-secondary btn-block mb-2">
+                        ✏️ AI校正を実行
+                    </button>
+                    
+                    <div class="ai-settings-quick">
+                        <label for="ai-tone">トーン:</label>
+                        <select id="ai-tone" class="form-control">
+                            <option value="formal">フォーマル</option>
+                            <option value="casual">カジュアル</option>
+                            <option value="technical">技術的</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </form>
+
+<!-- AI校正結果モーダル -->
+<div id="diff-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>AI校正結果</h2>
+            <span class="close" id="diff-modal-close">&times;</span>
+        </div>
+        
+        <div class="modal-body">
+            <div class="tabs">
+                <button class="tab active" data-view="side-by-side">左右比較</button>
+                <button class="tab" data-view="unified">統合表示</button>
+            </div>
+            
+            <div id="diff-viewer"></div>
+            <div id="suggestions-list"></div>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" id="btn-apply-all" class="btn btn-success">すべて適用</button>
+            <button type="button" id="btn-cancel-diff" class="btn btn-default">キャンセル</button>
+        </div>
+    </div>
+</div>
+
+<!-- AI記事生成モーダル -->
+<div id="article-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📝 AI記事生成</h2>
+            <span class="close" id="article-modal-close">&times;</span>
+        </div>
+        
+        <div class="modal-body">
+            <form id="article-form">
+                <div class="form-group">
+                    <label>記事のテーマ: <span class="required">*</span></label>
+                    <input type="text" name="topic" class="form-control" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>キーワード（カンマ区切り）:</label>
+                    <input type="text" name="keywords" class="form-control" placeholder="例: 技術, プログラミング, 初心者" />
+                </div>
+                
+                <div class="form-group">
+                    <label>対象読者:</label>
+                    <select name="target_audience" class="form-control">
+                        <option value="初心者">初心者</option>
+                        <option value="中級者" selected>中級者</option>
+                        <option value="上級者">上級者</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>目標文字数:</label>
+                    <input type="number" name="word_count" class="form-control" value="1000" min="100" />
+                </div>
+                
+                <button type="submit" class="btn btn-primary">記事を生成</button>
+            </form>
+            
+            <div id="article-result" style="display:none;">
+                <h3>生成された記事</h3>
+                <div id="article-preview" class="article-preview"></div>
+                <button type="button" id="btn-insert-article" class="btn btn-success">エディタに挿入</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ローディング表示 -->
+<div id="ai-loading" class="ai-loading" style="display: none;">
+    <div class="spinner"></div>
+    <p>AI処理中...</p>
+</div>
