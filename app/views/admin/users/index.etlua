@@ -1,0 +1,156 @@
+<!-- ユーザー管理一覧ページ -->
+
+<div class="users-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h2 style="margin: 0;">ユーザー管理</h2>
+    <a href="/admin/users/new" class="btn btn-primary" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">
+        ➕ 新規ユーザー追加
+    </a>
+</div>
+
+<!-- フィルター -->
+<div class="users-filters" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px;">
+    <form method="GET" action="/admin/users" style="display: flex; gap: 10px; align-items: center;">
+        <label for="role-filter" style="font-weight: bold;">ロールフィルター:</label>
+        <select name="role" id="role-filter" onchange="this.form.submit()" style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px;">
+            <option value="all" <%= role_filter == 'all' and 'selected' or '' %>>すべてのロール</option>
+            <option value="admin" <%= role_filter == 'admin' and 'selected' or '' %>>管理者</option>
+            <option value="editor" <%= role_filter == 'editor' and 'selected' or '' %>>編集者</option>
+            <option value="author" <%= role_filter == 'author' and 'selected' or '' %>>著者</option>
+            <option value="subscriber" <%= role_filter == 'subscriber' and 'selected' or '' %>>購読者</option>
+        </select>
+        <span style="margin-left: auto; color: #6c757d;">
+            全 <%= pagination.total_count %> ユーザー
+        </span>
+    </form>
+</div>
+
+<!-- ユーザーテーブル -->
+<div class="table-responsive">
+    <table class="table" style="width: 100%; border-collapse: collapse; background-color: white;">
+        <thead>
+            <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                <th style="padding: 12px; text-align: left;">ID</th>
+                <th style="padding: 12px; text-align: left;">ユーザー名</th>
+                <th style="padding: 12px; text-align: left;">メールアドレス</th>
+                <th style="padding: 12px; text-align: left;">表示名</th>
+                <th style="padding: 12px; text-align: left;">ロール</th>
+                <th style="padding: 12px; text-align: right;">投稿数</th>
+                <th style="padding: 12px; text-align: left;">登録日</th>
+                <th style="padding: 12px; text-align: center;">アクション</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% if users and #users > 0 then %>
+                <% for _, u in ipairs(users) do %>
+                <tr style="border-bottom: 1px solid #dee2e6;">
+                    <td style="padding: 12px;"><%= u.id %></td>
+                    <td style="padding: 12px; font-weight: 500;"><%= u.username %></td>
+                    <td style="padding: 12px;"><%= u.email %></td>
+                    <td style="padding: 12px;"><%= u.display_name or "-" %></td>
+                    <td style="padding: 12px;">
+                        <% 
+                            local badge_color = "gray"
+                            if u.role == "admin" then
+                                badge_color = "#dc3545"
+                            elseif u.role == "editor" then
+                                badge_color = "#007bff"
+                            elseif u.role == "author" then
+                                badge_color = "#28a745"
+                            else
+                                badge_color = "#6c757d"
+                            end
+                        %>
+                        <span style="background-color: <%= badge_color %>; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500;">
+                            <%= u.role %>
+                        </span>
+                    </td>
+                    <td style="padding: 12px; text-align: right;"><%= u.post_count or 0 %></td>
+                    <td style="padding: 12px;">
+                        <%
+                            -- created_atが文字列の場合はそのまま表示、数値の場合はフォーマット
+                            if type(u.created_at) == "string" then
+                        %>
+                            <%= u.created_at:sub(1, 10) %>
+                        <% else %>
+                            <%= os.date("%Y-%m-%d", u.created_at) %>
+                        <% end %>
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <a href="/admin/users/<%= u.id %>/edit" style="color: #007bff; text-decoration: none; margin-right: 10px;">編集</a>
+                        <form method="POST" action="/admin/users/<%= u.id %>/delete" style="display: inline;">
+                            <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+                            <button type="submit" onclick="return confirm('本当にこのユーザーを削除しますか？\n\nユーザー: <%= u.username %>\nメール: <%= u.email %>\n\n※ ユーザーに関連する投稿やコメントも削除されます。')" style="background: none; border: none; color: #dc3545; cursor: pointer; text-decoration: underline; padding: 0; font-size: inherit;">
+                                削除
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                <% end %>
+            <% else %>
+                <tr>
+                    <td colspan="8" style="padding: 30px; text-align: center; color: #6c757d;">
+                        ユーザーが見つかりませんでした
+                    </td>
+                </tr>
+            <% end %>
+        </tbody>
+    </table>
+</div>
+
+<!-- ページネーション -->
+<% if pagination.total_pages > 1 then %>
+<div class="pagination" style="margin-top: 20px; text-align: center;">
+    <div style="display: inline-flex; gap: 5px;">
+        <% if pagination.current_page > 1 then %>
+            <a href="/admin/users?page=<%= pagination.current_page - 1 %><%= role_filter ~= 'all' and '&role=' .. role_filter or '' %>" style="padding: 8px 12px; border: 1px solid #dee2e6; background-color: white; color: #007bff; text-decoration: none; border-radius: 4px;">
+                « 前へ
+            </a>
+        <% end %>
+        
+        <% for i = 1, pagination.total_pages do %>
+            <% if i == pagination.current_page then %>
+                <span style="padding: 8px 12px; border: 1px solid #007bff; background-color: #007bff; color: white; border-radius: 4px;">
+                    <%= i %>
+                </span>
+            <% elseif i == 1 or i == pagination.total_pages or (i >= pagination.current_page - 2 and i <= pagination.current_page + 2) then %>
+                <a href="/admin/users?page=<%= i %><%= role_filter ~= 'all' and '&role=' .. role_filter or '' %>" style="padding: 8px 12px; border: 1px solid #dee2e6; background-color: white; color: #007bff; text-decoration: none; border-radius: 4px;">
+                    <%= i %>
+                </a>
+            <% elseif i == pagination.current_page - 3 or i == pagination.current_page + 3 then %>
+                <span style="padding: 8px 12px; color: #6c757d;">...</span>
+            <% end %>
+        <% end %>
+        
+        <% if pagination.current_page < pagination.total_pages then %>
+            <a href="/admin/users?page=<%= pagination.current_page + 1 %><%= role_filter ~= 'all' and '&role=' .. role_filter or '' %>" style="padding: 8px 12px; border: 1px solid #dee2e6; background-color: white; color: #007bff; text-decoration: none; border-radius: 4px;">
+                次へ »
+            </a>
+        <% end %>
+    </div>
+</div>
+<% end %>
+
+<style>
+.btn {
+    display: inline-block;
+    font-weight: 400;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    user-select: none;
+    border: 1px solid transparent;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.table {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+</style>

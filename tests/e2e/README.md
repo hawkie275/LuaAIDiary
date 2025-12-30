@@ -13,6 +13,51 @@ E2Eテストは以下の特徴を持ちます：
 
 ## 実装済みテスト
 
+### ユーザー管理機能 E2Eテスト (`test_user_management.sh`)
+
+実際のHTTPリクエストでユーザー管理機能（管理者用とプロフィール編集用）をテストします：
+
+#### 1. ユーザー一覧表示テスト
+- ✅ 管理者でログイン → `/admin/users` にアクセス
+- ✅ HTMLレスポンスの確認
+- ✅ ユーザー一覧テーブルの表示確認
+- ✅ 新規作成リンクの存在確認
+
+#### 2. 新規ユーザー作成テスト
+- ✅ `GET /admin/users/new` → フォーム表示
+- ✅ フォーム要素の確認（username, email, password, role）
+- ✅ `POST /admin/users` → ユーザー作成
+- ✅ 成功メッセージの確認
+- ✅ ユーザー一覧に新規ユーザーが表示されることを確認
+
+#### 3. ユーザー編集テスト
+- ✅ `GET /admin/users/:id/edit` → 編集フォーム表示
+- ✅ `POST /admin/users/:id` → ユーザー情報更新
+- ✅ 更新が反映されていることを確認
+
+#### 4. ユーザー削除テスト
+- ✅ `POST /admin/users/:id/delete` → ユーザー削除
+- ✅ ユーザー一覧から削除されたことを確認
+- ✅ 最後の管理者は削除できないことを確認
+
+#### 5. プロフィール表示テスト
+- ✅ `GET /admin/profile` → プロフィール情報表示
+- ✅ ユーザー名、メールアドレスの表示確認
+- ✅ 統計情報（投稿数など）の表示確認
+
+#### 6. プロフィール編集テスト
+- ✅ `GET /admin/profile/edit` → 編集フォーム表示
+- ✅ `POST /admin/profile` → プロフィール情報更新
+- ✅ 更新が反映されていることを確認
+
+#### 7. 権限チェック: 通常ユーザー
+- ✅ 通常ユーザー（author）が `/admin/users` にアクセスできないことを確認
+- ✅ 403エラーまたはアクセス拒否を確認
+
+#### 8. 権限チェック: 未ログインユーザー
+- ✅ 未ログインで `/admin/profile` にアクセス → ログインページへリダイレクト
+- ✅ 未ログインで `/admin/profile/edit` にアクセス → ログインページへリダイレクト
+
 ### 管理画面ダッシュボード E2Eテスト (`test_admin_dashboard.sh`)
 
 実際のHTTPリクエストで管理画面の動作をテストします：
@@ -104,6 +149,8 @@ make test-e2e
 ./tests/e2e/test_post_api.sh
 ./tests/e2e/test_category_tag_api.sh
 ./tests/e2e/test_admin_dashboard.sh
+./tests/e2e/test_user_management.sh
+./tests/e2e/test_password_change.sh
 
 # カスタムURLを指定
 BASE_URL=http://localhost:8080 ./tests/e2e/test_post_api.sh
@@ -378,10 +425,11 @@ make test-e2e
 
 以下の機能を追加できます：
 
-- [ ] カテゴリーAPIのE2Eテスト
-- [ ] タグAPIのE2Eテスト
+- [x] カテゴリーAPIのE2Eテスト
+- [x] タグAPIのE2Eテスト
 - [ ] コメントAPIのE2Eテスト
-- [ ] パスワード変更のE2Eテスト
+- [x] パスワード変更のE2Eテスト
+- [x] ユーザー管理のE2Eテスト
 - [ ] ファイルアップロードのE2Eテスト
 - [ ] ページネーションのE2Eテスト
 - [ ] 検索機能のE2Eテスト

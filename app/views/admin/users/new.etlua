@@ -1,0 +1,144 @@
+<!-- 新規ユーザー作成フォーム -->
+
+<div class="page-header" style="margin-bottom: 20px;">
+    <h2>新規ユーザー作成</h2>
+</div>
+
+<div class="form-container" style="max-width: 600px;">
+    <form method="POST" action="/admin/users/create" class="user-form">
+        <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+        
+        <!-- ユーザー名 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="username" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                ユーザー名 <span style="color: #dc3545;">*</span>
+            </label>
+            <input 
+                type="text" 
+                id="username" 
+                name="username" 
+                value="<%= form_data and form_data.username or '' %>"
+                required 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+            <small style="display: block; margin-top: 5px; color: #6c757d;">
+                3-50文字、英数字、アンダースコア、ハイフンのみ使用可能
+            </small>
+        </div>
+        
+        <!-- メールアドレス -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="email" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                メールアドレス <span style="color: #dc3545;">*</span>
+            </label>
+            <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                value="<%= form_data and form_data.email or '' %>"
+                required 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+        </div>
+        
+        <!-- 表示名 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="display_name" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                表示名
+            </label>
+            <input 
+                type="text" 
+                id="display_name" 
+                name="display_name" 
+                value="<%= form_data and form_data.display_name or '' %>"
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+            <small style="display: block; margin-top: 5px; color: #6c757d;">
+                空欄の場合はユーザー名が使用されます
+            </small>
+        </div>
+        
+        <!-- パスワード -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="password" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                パスワード <span style="color: #dc3545;">*</span>
+            </label>
+            <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                required 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+            <small style="display: block; margin-top: 5px; color: #6c757d;">
+                8文字以上、英字と数字を含む必要があります
+            </small>
+        </div>
+        
+        <!-- ロール -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="role" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                ロール <span style="color: #dc3545;">*</span>
+            </label>
+            <select 
+                id="role" 
+                name="role" 
+                required 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+                <% for _, r in ipairs(roles) do %>
+                <option value="<%= r %>" <%= (form_data and form_data.role == r) and 'selected' or (r == 'subscriber' and 'selected' or '') %>>
+                    <%= r %>
+                    <% if r == "admin" then %>
+                        - 管理者（すべての権限）
+                    <% elseif r == "editor" then %>
+                        - 編集者（投稿管理）
+                    <% elseif r == "author" then %>
+                        - 著者（自分の投稿のみ）
+                    <% else %>
+                        - 購読者（閲覧のみ）
+                    <% end %>
+                </option>
+                <% end %>
+            </select>
+        </div>
+        
+        <!-- ボタン -->
+        <div class="form-actions" style="display: flex; gap: 10px; margin-top: 30px;">
+            <button 
+                type="submit" 
+                class="btn btn-primary" 
+                style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;"
+            >
+                作成
+            </button>
+            <a 
+                href="/admin/users" 
+                class="btn btn-secondary" 
+                style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; text-decoration: none; display: inline-block; font-size: 14px;"
+            >
+                キャンセル
+            </a>
+        </div>
+    </form>
+</div>
+
+<style>
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.form-container {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+</style>

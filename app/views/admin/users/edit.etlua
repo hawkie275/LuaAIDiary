@@ -1,0 +1,183 @@
+<!-- ユーザー編集フォーム -->
+
+<div class="page-header" style="margin-bottom: 20px;">
+    <h2>ユーザー編集: <%= edit_user.username %></h2>
+</div>
+
+<div class="form-container" style="max-width: 600px;">
+    <form method="POST" action="/admin/users/<%= edit_user.id %>/update" class="user-form">
+        <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+        
+        <!-- ユーザー名 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="username" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                ユーザー名 <span style="color: #dc3545;">*</span>
+            </label>
+            <input 
+                type="text" 
+                id="username" 
+                name="username" 
+                value="<%= edit_user.username %>"
+                required 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+            <small style="display: block; margin-top: 5px; color: #6c757d;">
+                3-50文字、英数字、アンダースコア、ハイフンのみ使用可能
+            </small>
+        </div>
+        
+        <!-- メールアドレス -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="email" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                メールアドレス <span style="color: #dc3545;">*</span>
+            </label>
+            <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                value="<%= edit_user.email %>"
+                required 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+        </div>
+        
+        <!-- 表示名 -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="display_name" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                表示名
+            </label>
+            <input 
+                type="text" 
+                id="display_name" 
+                name="display_name" 
+                value="<%= edit_user.display_name or '' %>"
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+            <small style="display: block; margin-top: 5px; color: #6c757d;">
+                空欄の場合はユーザー名が使用されます
+            </small>
+        </div>
+        
+        <!-- パスワード -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="password" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                パスワード
+            </label>
+            <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+            <small style="display: block; margin-top: 5px; color: #6c757d;">
+                変更する場合のみ入力してください（8文字以上、英字と数字を含む）
+            </small>
+        </div>
+        
+        <!-- ロール -->
+        <div class="form-group" style="margin-bottom: 20px;">
+            <label for="role" style="display: block; font-weight: 600; margin-bottom: 5px;">
+                ロール <span style="color: #dc3545;">*</span>
+            </label>
+            <select 
+                id="role" 
+                name="role" 
+                required 
+                style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+            >
+                <% for _, r in ipairs(roles) do %>
+                <option value="<%= r %>" <%= edit_user.role == r and 'selected' or '' %>>
+                    <%= r %>
+                    <% if r == "admin" then %>
+                        - 管理者（すべての権限）
+                    <% elseif r == "editor" then %>
+                        - 編集者（投稿管理）
+                    <% elseif r == "author" then %>
+                        - 著者（自分の投稿のみ）
+                    <% else %>
+                        - 購読者（閲覧のみ）
+                    <% end %>
+                </option>
+                <% end %>
+            </select>
+        </div>
+        
+        <!-- 登録情報 -->
+        <div class="user-info" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px;">
+            <p style="margin: 0 0 5px 0; color: #6c757d; font-size: 14px;">
+                <strong>ユーザーID:</strong> <%= edit_user.id %>
+            </p>
+            <p style="margin: 0; color: #6c757d; font-size: 14px;">
+                <strong>登録日:</strong>
+                <%
+                    -- created_atが文字列の場合はそのまま表示
+                    if type(edit_user.created_at) == "string" then
+                %>
+                    <%= edit_user.created_at:sub(1, 19):gsub("T", " ") %>
+                <% else %>
+                    <%= os.date("%Y年%m月%d日 %H:%M", edit_user.created_at) %>
+                <% end %>
+            </p>
+        </div>
+        
+        <!-- ボタン -->
+        <div class="form-actions" style="display: flex; gap: 10px; margin-top: 30px;">
+            <button 
+                type="submit" 
+                class="btn btn-primary" 
+                style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;"
+            >
+                更新
+            </button>
+            <a 
+                href="/admin/users" 
+                class="btn btn-secondary" 
+                style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; text-decoration: none; display: inline-block; font-size: 14px;"
+            >
+                キャンセル
+            </a>
+        </div>
+    </form>
+    
+    <!-- 削除セクション -->
+    <div class="danger-zone" style="margin-top: 40px; padding: 20px; border: 2px solid #dc3545; border-radius: 4px;">
+        <h3 style="color: #dc3545; margin-top: 0;">危険な操作</h3>
+        <p style="color: #6c757d; margin-bottom: 15px;">
+            ユーザーを削除すると、関連する投稿やコメントもすべて削除されます。この操作は元に戻せません。
+        </p>
+        <form method="POST" action="/admin/users/<%= edit_user.id %>/delete" style="display: inline;">
+            <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+            <button 
+                type="submit" 
+                onclick="return confirm('本当にこのユーザーを削除しますか？\n\nユーザー: <%= edit_user.username %>\nメール: <%= edit_user.email %>\n\n※ ユーザーに関連する投稿やコメントも削除されます。\n※ この操作は元に戻せません。')"
+                style="background-color: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;"
+            >
+                ⚠️ ユーザーを削除
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.btn:hover {
+    opacity: 0.9;
+}
+
+.form-container {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.danger-zone button:hover {
+    background-color: #c82333;
+}
+</style>

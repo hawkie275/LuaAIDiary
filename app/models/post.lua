@@ -179,16 +179,57 @@ function _M.find_by_slug(slug)
         return nil, "スラッグが指定されていません"
     end
     
-    local posts, err = _M:find_by({slug = slug})
-    if not posts then
+    -- usersテーブルとJOINして著者情報を取得
+    local query = string.format([[
+        SELECT
+            posts.*,
+            users.id as user_id,
+            users.username as user_username,
+            users.email as user_email,
+            users.display_name as user_display_name
+        FROM posts
+        LEFT JOIN users ON posts.author_id = users.id
+        WHERE posts.slug = %s
+        LIMIT 1
+    ]], db_config.escape(slug))
+    
+    local results, err = db_config.query(query)
+    
+    if not results then
         return nil, err
     end
     
-    if #posts == 0 then
+    if #results == 0 then
         return nil, "投稿が見つかりません"
     end
     
-    local post = posts[1]
+    local row = results[1]
+    
+    -- 著者情報をネストされたオブジェクトとして構築
+    local author = nil
+    if row.user_id then
+        author = {
+            id = row.user_id,
+            username = row.user_username,
+            email = row.user_email,
+            display_name = row.user_display_name
+        }
+    end
+    
+    -- 投稿オブジェクトを構築
+    local post = {
+        id = row.id,
+        title = row.title,
+        slug = row.slug,
+        content = row.content,
+        excerpt = row.excerpt,
+        author_id = row.author_id,
+        status = row.status,
+        published_at = row.published_at,
+        created_at = row.created_at,
+        updated_at = row.updated_at,
+        author = author
+    }
     
     -- カテゴリとタグを取得
     post.categories = _M.get_categories(post.id)
@@ -202,19 +243,65 @@ end
 -- @return 投稿リスト、エラー
 function _M.find_published(options)
     options = options or {}
-    options.where = "status = 'published'"
-    options.order_by = options.order_by or "published_at DESC"
+    local limit = options.limit or 10
+    local offset = options.offset or 0
+    local order_by = options.order_by or "posts.published_at DESC"
     
-    local posts, err = _M:all(options)
+    -- usersテーブルとJOINして著者情報を取得
+    local query = string.format([[
+        SELECT
+            posts.*,
+            users.id as user_id,
+            users.username as user_username,
+            users.email as user_email,
+            users.display_name as user_display_name
+        FROM posts
+        LEFT JOIN users ON posts.author_id = users.id
+        WHERE posts.status = 'published'
+        ORDER BY %s
+        LIMIT %d OFFSET %d
+    ]], order_by, limit, offset)
     
-    if not posts then
+    local results, err = db_config.query(query)
+    
+    if not results then
         return nil, err
     end
     
-    -- 各投稿にカテゴリとタグを付与
-    for _, post in ipairs(posts) do
+    -- 投稿データを整形
+    local posts = {}
+    for _, row in ipairs(results) do
+        -- 著者情報をネストされたオブジェクトとして構築
+        local author = nil
+        if row.user_id then
+            author = {
+                id = row.user_id,
+                username = row.user_username,
+                email = row.user_email,
+                display_name = row.user_display_name
+            }
+        end
+        
+        -- 投稿オブジェクトを構築
+        local post = {
+            id = row.id,
+            title = row.title,
+            slug = row.slug,
+            content = row.content,
+            excerpt = row.excerpt,
+            author_id = row.author_id,
+            status = row.status,
+            published_at = row.published_at,
+            created_at = row.created_at,
+            updated_at = row.updated_at,
+            author = author
+        }
+        
+        -- カテゴリとタグを付与
         post.categories = _M.get_categories(post.id)
         post.tags = _M.get_tags(post.id)
+        
+        table.insert(posts, post)
     end
     
     return posts, nil
@@ -237,11 +324,18 @@ function _M.find_by_category(category_id, options)
     end
     
     local query = string.format([[
-        SELECT posts.* FROM posts
+        SELECT
+            posts.*,
+            users.id as user_id,
+            users.username as user_username,
+            users.email as user_email,
+            users.display_name as user_display_name
+        FROM posts
         INNER JOIN post_categories ON posts.id = post_categories.post_id
+        LEFT JOIN users ON posts.author_id = users.id
         WHERE post_categories.category_id = %s%s
         ORDER BY %s
-    ]], 
+    ]],
         db_config.escape(tostring(category_id)),
         status_clause,
         options.order_by or "posts.published_at DESC"
@@ -255,15 +349,45 @@ function _M.find_by_category(category_id, options)
         query = query .. " OFFSET " .. tostring(options.offset)
     end
     
-    local posts, err = _M:raw_query(query)
-    if not posts then
+    local results, err = db_config.query(query)
+    if not results then
         return nil, err
     end
     
-    -- 各投稿にカテゴリとタグを付与
-    for _, post in ipairs(posts) do
+    -- 投稿データを整形
+    local posts = {}
+    for _, row in ipairs(results) do
+        -- 著者情報をネストされたオブジェクトとして構築
+        local author = nil
+        if row.user_id then
+            author = {
+                id = row.user_id,
+                username = row.user_username,
+                email = row.user_email,
+                display_name = row.user_display_name
+            }
+        end
+        
+        -- 投稿オブジェクトを構築
+        local post = {
+            id = row.id,
+            title = row.title,
+            slug = row.slug,
+            content = row.content,
+            excerpt = row.excerpt,
+            author_id = row.author_id,
+            status = row.status,
+            published_at = row.published_at,
+            created_at = row.created_at,
+            updated_at = row.updated_at,
+            author = author
+        }
+        
+        -- カテゴリとタグを付与
         post.categories = _M.get_categories(post.id)
         post.tags = _M.get_tags(post.id)
+        
+        table.insert(posts, post)
     end
     
     return posts, nil
@@ -286,11 +410,18 @@ function _M.find_by_tag(tag_id, options)
     end
     
     local query = string.format([[
-        SELECT posts.* FROM posts
+        SELECT
+            posts.*,
+            users.id as user_id,
+            users.username as user_username,
+            users.email as user_email,
+            users.display_name as user_display_name
+        FROM posts
         INNER JOIN post_tags ON posts.id = post_tags.post_id
+        LEFT JOIN users ON posts.author_id = users.id
         WHERE post_tags.tag_id = %s%s
         ORDER BY %s
-    ]], 
+    ]],
         db_config.escape(tostring(tag_id)),
         status_clause,
         options.order_by or "posts.published_at DESC"
@@ -304,15 +435,45 @@ function _M.find_by_tag(tag_id, options)
         query = query .. " OFFSET " .. tostring(options.offset)
     end
     
-    local posts, err = _M:raw_query(query)
-    if not posts then
+    local results, err = db_config.query(query)
+    if not results then
         return nil, err
     end
     
-    -- 各投稿にカテゴリとタグを付与
-    for _, post in ipairs(posts) do
+    -- 投稿データを整形
+    local posts = {}
+    for _, row in ipairs(results) do
+        -- 著者情報をネストされたオブジェクトとして構築
+        local author = nil
+        if row.user_id then
+            author = {
+                id = row.user_id,
+                username = row.user_username,
+                email = row.user_email,
+                display_name = row.user_display_name
+            }
+        end
+        
+        -- 投稿オブジェクトを構築
+        local post = {
+            id = row.id,
+            title = row.title,
+            slug = row.slug,
+            content = row.content,
+            excerpt = row.excerpt,
+            author_id = row.author_id,
+            status = row.status,
+            published_at = row.published_at,
+            created_at = row.created_at,
+            updated_at = row.updated_at,
+            author = author
+        }
+        
+        -- カテゴリとタグを付与
         post.categories = _M.get_categories(post.id)
         post.tags = _M.get_tags(post.id)
+        
+        table.insert(posts, post)
     end
     
     return posts, nil
@@ -331,17 +492,24 @@ function _M.search(keyword, options)
     
     local status_clause = ""
     if options.published_only then
-        status_clause = " AND status = 'published'"
+        status_clause = " AND posts.status = 'published'"
     end
     
     local query = string.format([[
-        SELECT * FROM posts
-        WHERE to_tsvector('english', title || ' ' || content) @@ to_tsquery('english', %s)%s
+        SELECT
+            posts.*,
+            users.id as user_id,
+            users.username as user_username,
+            users.email as user_email,
+            users.display_name as user_display_name
+        FROM posts
+        LEFT JOIN users ON posts.author_id = users.id
+        WHERE to_tsvector('english', posts.title || ' ' || posts.content) @@ to_tsquery('english', %s)%s
         ORDER BY %s
     ]],
         db_config.escape(keyword),
         status_clause,
-        options.order_by or "published_at DESC"
+        options.order_by or "posts.published_at DESC"
     )
     
     if options.limit then
@@ -352,15 +520,45 @@ function _M.search(keyword, options)
         query = query .. " OFFSET " .. tostring(options.offset)
     end
     
-    local posts, err = _M:raw_query(query)
-    if not posts then
+    local results, err = db_config.query(query)
+    if not results then
         return nil, err
     end
     
-    -- 各投稿にカテゴリとタグを付与
-    for _, post in ipairs(posts) do
+    -- 投稿データを整形
+    local posts = {}
+    for _, row in ipairs(results) do
+        -- 著者情報をネストされたオブジェクトとして構築
+        local author = nil
+        if row.user_id then
+            author = {
+                id = row.user_id,
+                username = row.user_username,
+                email = row.user_email,
+                display_name = row.user_display_name
+            }
+        end
+        
+        -- 投稿オブジェクトを構築
+        local post = {
+            id = row.id,
+            title = row.title,
+            slug = row.slug,
+            content = row.content,
+            excerpt = row.excerpt,
+            author_id = row.author_id,
+            status = row.status,
+            published_at = row.published_at,
+            created_at = row.created_at,
+            updated_at = row.updated_at,
+            author = author
+        }
+        
+        -- カテゴリとタグを付与
         post.categories = _M.get_categories(post.id)
         post.tags = _M.get_tags(post.id)
+        
+        table.insert(posts, post)
     end
     
     return posts, nil
