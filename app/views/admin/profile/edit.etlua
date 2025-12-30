@@ -1,0 +1,333 @@
+<div class="profile-edit-container">
+    <div class="profile-edit-header">
+        <h2>プロフィール編集</h2>
+        <a href="/admin/profile" class="btn btn-secondary">キャンセル</a>
+    </div>
+
+    <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        パスワードを変更する場合は、<a href="/admin/change-password" class="alert-link">パスワード変更ページ</a>をご利用ください。
+    </div>
+
+    <div class="form-card">
+        <form method="POST" action="/admin/profile/update" class="profile-form">
+            <input type="hidden" name="_csrf_token" value="<%= csrf_token %>">
+            
+            <div class="form-group">
+                <label for="username" class="form-label">
+                    ユーザー名 <span class="required">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    class="form-control" 
+                    value="<%= user.username %>" 
+                    required
+                    pattern="[a-zA-Z0-9_]{3,50}"
+                    title="3-50文字、英数字とアンダースコアのみ">
+                <small class="form-text">3-50文字、英数字とアンダースコアのみ使用できます</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="email" class="form-label">
+                    メールアドレス <span class="required">*</span>
+                </label>
+                <input 
+                    type="email" 
+                    id="email" 
+                    name="email" 
+                    class="form-control" 
+                    value="<%= user.email %>" 
+                    required>
+                <small class="form-text">有効なメールアドレスを入力してください</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="display_name" class="form-label">
+                    表示名
+                </label>
+                <input 
+                    type="text" 
+                    id="display_name" 
+                    name="display_name" 
+                    class="form-control" 
+                    value="<%= user.display_name or '' %>">
+                <small class="form-text">公開プロフィールに表示される名前です（オプション）</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="role" class="form-label">
+                    ロール
+                </label>
+                <input 
+                    type="text" 
+                    id="role" 
+                    class="form-control" 
+                    value="<%= user.role %>" 
+                    disabled>
+                <small class="form-text">ロールは管理者のみが変更できます</small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-icon">💾</span>
+                    更新する
+                </button>
+                <a href="/admin/profile" class="btn btn-secondary">キャンセル</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="additional-actions">
+        <div class="action-card">
+            <h3>パスワードの変更</h3>
+            <p>パスワードを変更するには専用ページをご利用ください。</p>
+            <a href="/admin/change-password" class="btn btn-outline">パスワード変更ページへ</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-edit-container {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.profile-edit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.profile-edit-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #333;
+}
+
+.alert {
+    padding: 15px 20px;
+    border-radius: 6px;
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert-info {
+    background-color: #e7f3ff;
+    color: #004085;
+    border: 1px solid #b8daff;
+}
+
+.alert-icon {
+    font-size: 20px;
+}
+
+.alert-link {
+    color: #004085;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.alert-link:hover {
+    color: #002752;
+}
+
+.form-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    margin-bottom: 30px;
+}
+
+.profile-form {
+    max-width: 100%;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.required {
+    color: #dc3545;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-control:disabled {
+    background-color: #f5f5f5;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.form-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+.btn-outline {
+    background-color: white;
+    color: #007bff;
+    border: 1px solid #007bff;
+}
+
+.btn-outline:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-icon {
+    font-size: 16px;
+}
+
+.additional-actions {
+    margin-top: 30px;
+}
+
+.action-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    border-left: 4px solid #6c757d;
+}
+
+.action-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.action-card p {
+    margin: 0 0 15px 0;
+    color: #666;
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .profile-edit-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .form-card {
+        padding: 20px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* フォームバリデーションのスタイル */
+.form-control:invalid:not(:focus):not(:placeholder-shown) {
+    border-color: #dc3545;
+}
+
+.form-control:valid:not(:focus):not(:placeholder-shown) {
+    border-color: #28a745;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // フォーム送信前のバリデーション
+    const form = document.querySelector('.profile-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+
+            // 簡易的なバリデーション
+            if (!username || username.length < 3 || username.length > 50) {
+                alert('ユーザー名は3文字以上50文字以内で入力してください');
+                e.preventDefault();
+                return false;
+            }
+
+            if (!email || !email.includes('@')) {
+                alert('有効なメールアドレスを入力してください');
+                e.preventDefault();
+                return false;
+            }
+
+            return true;
+        });
+    }
+});
+</script>

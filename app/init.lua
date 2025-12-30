@@ -33,6 +33,9 @@ local tag_controller = require("controllers.tag_controller")
 -- 管理画面コントローラーの初期化
 local admin_controller = require("controllers.admin_controller")
 
+-- ユーザー管理コントローラーの初期化
+local user_controller = require("controllers.user_controller")
+
 -- Geminiコントローラーの初期化
 local gemini_controller = require("controllers.gemini_controller")
 
@@ -481,6 +484,59 @@ end)
 -- サイト設定更新
 app:post("/admin/settings", function(self)
     return admin_controller.settings_update(self)
+end)
+
+-- ========================================
+-- 管理画面 - ユーザー管理エンドポイント
+-- ========================================
+
+-- ユーザー一覧
+app:get("/admin/users", function(self)
+    return user_controller:index(self)
+end)
+
+-- 新規ユーザーフォーム
+app:get("/admin/users/new", function(self)
+    return user_controller:new(self)
+end)
+
+-- ユーザー作成
+app:post("/admin/users/create", function(self)
+    return user_controller:create(self)
+end)
+
+-- ユーザー編集フォーム
+app:get("/admin/users/:id/edit", function(self)
+    return user_controller:edit(self)
+end)
+
+-- ユーザー更新
+app:post("/admin/users/:id/update", function(self)
+    return user_controller:update(self)
+end)
+
+-- ユーザー削除
+app:post("/admin/users/:id/delete", function(self)
+    return user_controller:delete(self)
+end)
+
+-- ========================================
+-- 管理画面 - プロフィール管理エンドポイント
+-- ========================================
+
+-- プロフィール表示
+app:get("/admin/profile", function(self)
+    return user_controller:profile(self)
+end)
+
+-- プロフィール編集フォーム
+app:get("/admin/profile/edit", function(self)
+    return user_controller:edit_profile(self)
+end)
+
+-- プロフィール更新
+app:post("/admin/profile/update", function(self)
+    return user_controller:update_profile(self)
 end)
 
 -- ========================================

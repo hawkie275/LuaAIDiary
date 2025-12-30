@@ -1,0 +1,269 @@
+<div class="profile-container">
+    <!-- 成功メッセージの確認 -->
+    <% 
+    local args = ngx.req.get_uri_args() or {}
+    if args.updated == "1" then 
+    %>
+        <div class="alert alert-success">
+            <span class="alert-icon">✓</span>
+            プロフィールを更新しました
+        </div>
+    <% end %>
+
+    <div class="profile-header">
+        <h2>プロフィール</h2>
+        <div class="profile-actions">
+            <a href="/admin/profile/edit" class="btn btn-primary">プロフィール編集</a>
+            <a href="/admin/change-password" class="btn btn-secondary">パスワード変更</a>
+        </div>
+    </div>
+
+    <div class="profile-card">
+        <div class="card-section">
+            <h3 class="section-title">基本情報</h3>
+            <div class="info-grid">
+                <div class="info-group">
+                    <label class="info-label">ユーザー名</label>
+                    <span class="info-value"><%= user.username %></span>
+                </div>
+                <div class="info-group">
+                    <label class="info-label">メールアドレス</label>
+                    <span class="info-value"><%= user.email %></span>
+                </div>
+                <div class="info-group">
+                    <label class="info-label">表示名</label>
+                    <span class="info-value"><%= user.display_name or "-" %></span>
+                </div>
+                <div class="info-group">
+                    <label class="info-label">ロール</label>
+                    <span class="badge badge-<%= user.role %>"><%= user.role %></span>
+                </div>
+                <div class="info-group">
+                    <label class="info-label">登録日</label>
+                    <span class="info-value">
+                        <% 
+                        if user.created_at then
+                            if type(user.created_at) == "number" then
+                                print(os.date("%Y年%m月%d日 %H:%M", user.created_at))
+                            else
+                                print(user.created_at)
+                            end
+                        else
+                            print("-")
+                        end
+                        %>
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-section">
+            <h3 class="section-title">統計情報</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-content">
+                        <div class="stat-value"><%= stats.post_count or 0 %></div>
+                        <div class="stat-label">投稿数</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💬</div>
+                    <div class="stat-content">
+                        <div class="stat-value"><%= stats.comment_count or 0 %></div>
+                        <div class="stat-label">コメント数</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.profile-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #333;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.profile-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.card-section {
+    padding: 30px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.card-section:last-child {
+    border-bottom: none;
+}
+
+.section-title {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    color: #333;
+    font-weight: 600;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.info-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 16px;
+    color: #333;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.badge-admin {
+    background-color: #dc3545;
+    color: white;
+}
+
+.badge-editor {
+    background-color: #007bff;
+    color: white;
+}
+
+.badge-author {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-subscriber {
+    background-color: #6c757d;
+    color: white;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    font-size: 40px;
+    margin-right: 15px;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #333;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
