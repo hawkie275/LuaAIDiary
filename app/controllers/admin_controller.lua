@@ -324,34 +324,8 @@ function AdminController.dashboard(self)
         }
     end
     
-    -- 管理者権限チェック
-    if not check_admin_permission(user) then
-        -- 権限不足
-        ngx.status = 403
-        self.res.headers["Content-Type"] = "text/html; charset=utf-8"
-        return [[
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>403 Forbidden - LuaAIDiary</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-        h1 { color: #d9534f; }
-        p { color: #666; }
-        a { color: #337ab7; text-decoration: none; }
-    </style>
-</head>
-<body>
-    <h1>403 Forbidden</h1>
-    <p>このページへのアクセス権限がありません。</p>
-    <p>管理者権限が必要です。</p>
-    <p><a href="/">トップページに戻る</a></p>
-</body>
-</html>
-]]
-    end
+    -- ダッシュボードは全認証ユーザーがアクセス可能
+    -- 管理者専用機能（投稿管理、ユーザー管理など）は個別に権限チェック
     
     -- CSRFトークンを生成
     local csrf_token, csrf_err = csrf.generate_token(session)
