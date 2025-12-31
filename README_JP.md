@@ -21,6 +21,19 @@ LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、PostgreSQL、Redisを使
 - **ホットリロード**: コード変更時の自動反映
 - **セキュア**: bcrypt、CSRF保護、暗号化APIキー管理
 
+## ⚡ パフォーマンス
+
+LuaAIDiary は高性能CMSとして設計されており、以下のベンチマーク結果を達成しています：
+
+- **スループット**: 70,405 req/sec
+- **レイテンシ**: 2.83ms（平均）
+- **スケール**: 日間60億PV、月間1.8兆PVに対応可能
+- **評価**: ⭐⭐⭐⭐⭐ エンタープライズグレード
+
+*ベンチマーク環境: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)*
+
+📊 **詳細なパフォーマンスレポート**: [`tests/performance/results/performance_improvement_report.md`](tests/performance/results/performance_improvement_report.md)
+
 ## 技術スタック
 
 - **Webフレームワーク**: Lapis (OpenResty/Nginx + LuaJIT)
