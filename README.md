@@ -8,22 +8,38 @@ LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJI
 
 ## Key Features
 
-- **High Performance**: Asynchronous I/O processing with OpenResty + Lapis
+- **Ultra-Fast Performance**: Asynchronous I/O processing with OpenResty + LuaJIT delivers several times better performance than traditional PHP-based CMS
+- **AI Content Generation**: Automatically generate complete articles from topics using Gemini API integration
+- **AI Proofreading**: Automatically improve grammar, expression, and structure
+- **Complete Admin Panel**: Intuitive content management with WordPress-style dashboard
 - **Lightweight**: Fast script execution with LuaJIT
+- **Role-Based Access Control**: 5-tier permission management (admin/editor/author/contributor/subscriber)
+- **Full-Text Search**: High-speed search with PostgreSQL GIN indexes
 - **Test Environment**: Automated testing support with Busted
 - **Developer Tools**: Enhanced development efficiency with Makefile and Luacheck
 - **Scalable**: Horizontal scaling with Redis and PostgreSQL
 - **Hot Reload**: Automatic reflection of code changes
+- **Secure**: bcrypt, CSRF protection, encrypted API key management
 
 ## Tech Stack
 
 - **Web Framework**: Lapis (OpenResty/Nginx + LuaJIT)
-- **Database**: PostgreSQL 15
+- **Database**: PostgreSQL 15 (full-text search, JSONB support)
 - **Cache/Session**: Redis 7
+- **AI Integration**: Google Gemini API
 - **Test Framework**: Busted
 - **Static Analysis**: Luacheck
 - **Containerization**: Docker & Docker Compose
 - **Language**: Lua
+
+### Why OpenResty + LuaJIT?
+
+OpenResty is a platform that integrates LuaJIT into Nginx, offering the following advantages:
+
+1. **Asynchronous I/O**: Event-driven architecture provides high performance even in high-concurrency environments
+2. **Low Memory Usage**: LuaJIT's JIT compiler is more memory-efficient than PHP and similar languages
+3. **Fast Response**: Lua code runs directly on Nginx's event loop, eliminating CGI/FastCGI overhead
+4. **C Extension Compatibility**: FFI (Foreign Function Interface) allows direct calls to C libraries
 
 ## Directory Structure
 
@@ -79,8 +95,8 @@ Automated setup using Makefile:
 
 ```bash
 # Clone the repository
-git clone https://github.com/hawkie275/luaaidiary.git
-cd luaaidiary
+git clone https://github.com/hawkie275/LuaAIDiary.git
+cd LuaAIDiary
 
 # Initial setup (.env creation, build, startup)
 make setup
@@ -173,15 +189,322 @@ make status
 make clean
 ```
 
+## Admin Panel
+
+### Access Method
+
+Access the admin panel at:
+
+```
+http://localhost:8080/admin
+```
+
+or
+
+```
+http://localhost:8080/admin/dashboard
+```
+
+### Default Login Credentials
+
+After initial setup, log in with the administrator account:
+
+- **Username**: `admin`
+- **Password**: Password set in the database initialization script
+  - Default can be checked in `postgresql/init/02_update_admin_password.sql`
+  - **For security, change the password immediately after first login**
+
+### Changing Password
+
+1. Log in to the admin panel
+2. Select "Change Password" from the user menu in the upper right
+3. Enter current password and new password
+
+Or access directly:
+
+```
+http://localhost:8080/admin/change-password
+```
+
+### Main Admin Features
+
+#### Dashboard (`/admin/dashboard`)
+- Site statistics display
+  - Post count (all statuses)
+  - Category count
+  - Tag count
+  - Comment count
+- Recent 5 posts
+- System information (Lua version, server time, DB connection status)
+
+#### Post Management (`/admin/posts`)
+- Post list display
+- Create new post
+- Edit post
+- Delete post
+- Status management (draft/published/trash)
+- Markdown preview
+- Category and tag assignment
+
+#### Category Management (`/admin/categories`)
+- Category list
+- Create, edit, delete categories
+- Hierarchical structure management
+
+#### Tag Management (`/admin/tags`)
+- Tag list
+- Create, edit, delete tags
+
+#### User Management (`/admin/users`)
+- User list
+- Create new user
+- Edit user information
+- Change roles (admin/editor/author/contributor/subscriber)
+- Delete user
+
+#### Site Settings (`/admin/settings`)
+- Site basic information
+- AI settings (Gemini API)
+- Theme settings
+
+#### Profile Management (`/admin/profile`)
+- View and edit your own profile
+- Change password
+
+## Gemini AI Features
+
+LuaAIDiary integrates with Google Gemini API to provide AI-powered article writing assistance.
+
+### Main Features
+
+#### 1. AI Article Generation
+
+Automatically generate complete articles from topics and keywords.
+
+**Features**:
+- Auto-generate titles and content
+- Suggest heading structure
+- SEO-conscious writing
+- Customizable word count and tone
+
+**Usage**:
+1. Click "AI Generate" button on post edit screen
+2. Enter topic and keywords
+3. Optionally specify target audience, word count, and tone
+4. Review and edit the generated article
+
+**API Endpoint**:
+```bash
+POST /api/gemini/generate-article
+Content-Type: application/json
+X-CSRF-Token: YOUR_CSRF_TOKEN
+
+{
+  "topic": "LuaJIT Performance",
+  "keywords": "Lua, JIT, Performance",
+  "target_audience": "Developers",
+  "word_count": 2000,
+  "tone": "technical"
+}
+```
+
+#### 2. AI Proofreading
+
+Analyze existing articles and provide suggestions for improving grammar, expression, and structure.
+
+**Features**:
+- Grammar check
+- Expression improvement suggestions
+- Readability enhancement
+- Tone adjustment
+
+**Usage**:
+1. Enter content in post edit screen
+2. Click "AI Proofread" button
+3. Review improvement suggestions
+4. Apply necessary corrections
+
+**API Endpoint**:
+```bash
+POST /api/gemini/proofread
+Content-Type: application/json
+X-CSRF-Token: YOUR_CSRF_TOKEN
+
+{
+  "content": "Article content to proofread...",
+  "tone": "formal"
+}
+```
+
+### Setting Up Gemini API Key
+
+To use AI features, each user must set up their individual Gemini API key.
+
+#### 1. Obtaining an API Key
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Log in with your Google account
+3. Click "Create API Key"
+4. Copy the generated API key
+
+#### 2. Configuring the API Key
+
+From admin panel:
+
+1. Access `/admin/settings`
+2. Select "AI Settings" tab
+3. Enter Gemini API key
+4. Click "Save"
+
+Via API:
+
+```bash
+POST /api/settings/gemini-api-key
+Content-Type: application/json
+X-CSRF-Token: YOUR_CSRF_TOKEN
+
+{
+  "api_key": "YOUR_GEMINI_API_KEY"
+}
+```
+
+#### 3. Security
+
+- API keys are encrypted with AES-256-CBC before storing in database
+- Each user manages their individual API key
+- Master encryption key managed via environment variable (`ENCRYPTION_KEY`)
+- Only the owner can view and update their API key
+
+### Customizing AI Settings
+
+You can adjust the quality and style of generated articles by customizing prompt templates.
+
+**Configuration Options**:
+- **Model Selection**: `gemini-2.5-flash`, `gemini-1.5-pro`, etc.
+- **Article Generation Prompt**: Prompt template for article generation
+- **Proofreading Prompt**: Prompt template for proofreading
+- **Default Target Audience**: Target audience for articles
+- **Default Tone**: formal, casual, technical, etc.
+
+### API Connection Test
+
+Test if your API key is configured correctly:
+
+```bash
+POST /api/gemini/test-connection
+Content-Type: application/json
+X-CSRF-Token: YOUR_CSRF_TOKEN
+```
+
+Success response:
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "API connection successful",
+    "response": "Connection successful"
+  }
+}
+```
+
 ## Available Endpoints
+
+### Public Endpoints
 
 | Endpoint | Description | Response |
 |----------|-------------|----------|
-| `GET /` | Homepage | HTML |
+| `GET /` | Homepage (post list) | HTML |
 | `GET /:slug` | Single post | HTML |
+| `GET /category/:slug` | Category archive | HTML |
+| `GET /tag/:slug` | Tag archive | HTML |
+| `GET /author/:username` | Author archive | HTML |
+| `GET /search` | Search results | HTML |
 | `GET /health` | Health check | JSON |
 | `GET /api/db-test` | PostgreSQL connection test | JSON |
 | `GET /api/redis-test` | Redis connection test | JSON |
+
+### Authentication API Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/auth/register` | POST | User registration | No |
+| `/api/auth/login` | POST | Login | No |
+| `/api/auth/logout` | POST | Logout | Yes |
+| `/api/auth/me` | GET | Get current user info | Yes |
+| `/api/auth/change-password` | POST | Change password | Yes |
+| `/api/auth/check` | GET | Check auth status | Optional |
+
+### Post API Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/posts` | GET | Get post list | Optional |
+| `/api/posts` | POST | Create post | Yes (author+) |
+| `/api/posts/:id` | GET | Get post details | Optional |
+| `/api/posts/:id` | PUT | Update post | Yes (owner) |
+| `/api/posts/:id` | DELETE | Delete post | Yes (owner) |
+
+### Category API Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/categories` | GET | Get category list | No |
+| `/api/categories` | POST | Create category | Yes (editor+) |
+| `/api/categories/:id` | GET | Get category details | No |
+| `/api/categories/:id` | PUT | Update category | Yes (editor+) |
+| `/api/categories/:id` | DELETE | Delete category | Yes (editor+) |
+
+### Tag API Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/tags` | GET | Get tag list | No |
+| `/api/tags` | POST | Create tag | Yes (author+) |
+| `/api/tags/:id` | GET | Get tag details | No |
+| `/api/tags/:id` | PUT | Update tag | Yes (editor+) |
+| `/api/tags/:id` | DELETE | Delete tag | Yes (editor+) |
+
+### Admin Panel Endpoints
+
+| Endpoint | Description | Permission |
+|----------|-------------|------------|
+| `GET /admin` | Admin top (redirect to dashboard) | editor+ |
+| `GET /admin/dashboard` | Dashboard | editor+ |
+| `GET /admin/posts` | Post list | editor+ |
+| `GET /admin/posts/new` | New post form | author+ |
+| `GET /admin/posts/:id/edit` | Edit post form | owner |
+| `GET /admin/categories` | Category management | editor+ |
+| `GET /admin/tags` | Tag management | editor+ |
+| `GET /admin/users` | User management | admin |
+| `GET /admin/settings` | Site settings | admin |
+| `GET /admin/profile` | Profile display | all users |
+| `GET /admin/login` | Login form | none |
+| `GET /admin/change-password` | Password change form | required |
+
+### Gemini AI API Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/gemini/generate-article` | POST | AI article generation | Yes |
+| `/api/gemini/proofread` | POST | AI proofreading | Yes |
+| `/api/gemini/test-connection` | POST | API connection test | Yes |
+
+### AI Settings API Endpoints
+
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/api/settings/ai-preferences` | GET | Get AI settings | Yes |
+| `/api/settings/ai-preferences` | PUT | Update AI settings | Yes |
+| `/api/settings/gemini-api-key` | POST | Save API key | Yes |
+| `/api/settings/gemini-api-key` | DELETE | Delete API key | Yes |
+
+### Other Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/csrf-token` | GET | Get CSRF token |
+| `/api/preview/markdown` | POST | Markdown preview |
 
 ### Example: Health Check
 
@@ -293,9 +616,9 @@ make logs-web
 
 **⚠️ You must change the following settings in production:**
 
-1. **Change Database Passwords**
+1. **Change Database Password**
    ```bash
-   # Change to strong passwords in .env file
+   # Change to strong password in .env file
    POSTGRES_PASSWORD=strong_random_password
    ```
 
@@ -308,22 +631,55 @@ make logs-web
    ENCRYPTION_KEY=generated_key
    ```
 
-3. **Environment Variable Management**
+3. **Change Admin Password**
+   - Change immediately after first login
+   - Can be changed from `/admin/change-password`
+
+4. **Environment Variable Management**
    - **Never commit `.env` file to Git**
    - Verify `.env` is included in `.gitignore`
    - Manage environment variables securely in production (AWS Secrets Manager, Hashicorp Vault, etc.)
 
-4. **Use HTTPS**
+5. **Use HTTPS**
    - Always configure HTTPS/TLS in production
    - Free SSL certificates available through Let's Encrypt
 
-### Development Environment Security
+### Implemented Security Features
 
-Be mindful of the following even in development:
+#### Password Security
+- **bcrypt**: 12 rounds of hashing
+- **Salt**: Auto-generated
+- **Minimum length**: 8 characters
 
-- Default `.env.example` values are for development only
-- Don't use personal information or actual API keys
-- Don't expose database port (5432) externally
+#### Session Management
+- **Storage**: Redis (in-memory)
+- **Expiration**: 7 days
+- **Cookie settings**:
+  - `HttpOnly`: Not accessible from JavaScript
+  - `SameSite=Lax`: Mitigates CSRF attacks
+  - `Secure`: HTTPS only in production (requires configuration)
+
+#### CSRF Protection
+- CSRF token verification for all mutation operations
+- Tokens are 32-byte random strings
+- Generated per session
+
+#### API Key Encryption
+- **Encryption method**: AES-256-CBC
+- **Master key**: Managed via environment variable
+- **Access control**: Only owner can view
+
+#### Role-Based Access Control (RBAC)
+- **admin**: All operations allowed
+- **editor**: Content management and publishing
+- **author**: Manage own articles
+- **contributor**: Create article drafts
+- **subscriber**: View only
+
+#### Input Validation
+- All input data validated server-side
+- SQL injection protection (parameterized queries)
+- XSS protection (output escaping)
 
 ## Environment Variables
 
@@ -429,26 +785,69 @@ make build
 
 ## Future Implementation Plans
 
-### Phase 1: Core System
-- [ ] User authentication & authorization system (bcrypt)
-- [ ] Post CRUD functionality
-- [ ] Session management (Redis)
-- [ ] CSRF protection
+### Phase 1: Core System ✅ Completed
+- ✅ User authentication & authorization system (bcrypt)
+- ✅ Post CRUD functionality
+- ✅ Session management (Redis)
+- ✅ CSRF protection
 
-### Phase 2: Theme Compatibility Layer
-- [x] WordPress theme loader
-- [x] WordPress function emulation
-- [x] Template engine integration
+### Phase 2: Theme Compatibility Layer (Lower Priority)
+- [ ] WordPress theme loader
+- [ ] WordPress function emulation
+- [ ] Template engine integration
 
-### Phase 3: Gemini Integration
-- [ ] Gemini API integration
-- [ ] Article composition suggestion feature
-- [ ] API key encryption management
+### Phase 3: Gemini Integration ✅ Completed
+- ✅ Gemini API integration
+- ✅ Article structure suggestion feature
+- ✅ API key encryption management
+- ✅ AI proofreading feature
 
-### Phase 4: Admin Panel
-- [ ] Dashboard
-- [ ] Rich text editor
-- [ ] Media upload
+### Phase 4: Admin Panel ✅ Completed
+- ✅ Dashboard
+- ✅ Post management screen
+- ✅ Category and tag management
+- ✅ User management
+- ✅ Site settings
+
+### Phase 5: Future Enhancements (Under Consideration)
+
+#### Content Features
+- [ ] Rich text editor (WYSIWYG)
+- [ ] Media upload and management
+- [ ] Image optimization
+- [ ] Post version control
+- [ ] Post duplication feature
+- [ ] Bulk operations (delete multiple posts, etc.)
+
+#### AI Feature Enhancements
+- [ ] Article SEO analysis
+- [ ] Automatic tagging
+- [ ] Related post suggestions
+- [ ] Image generation (Imagen integration)
+- [ ] Multi-language translation
+
+#### User Features
+- [ ] Two-factor authentication (2FA)
+- [ ] Password reset (via email)
+- [ ] OAuth integration (Google/GitHub, etc.)
+- [ ] Login history
+- [ ] Session management screen
+
+#### Performance
+- [ ] Page caching mechanism
+- [ ] CDN integration
+- [ ] Image lazy loading
+- [ ] HTTP/2 Server Push
+
+#### Plugin System
+- [ ] Plugin architecture
+- [ ] Hooks/filters system
+- [ ] Plugin marketplace
+
+#### Monitoring & Analytics
+- [ ] Access analytics
+- [ ] Error tracking (Sentry integration)
+- [ ] Performance monitoring (Prometheus + Grafana)
 
 For detailed implementation plans, refer to [DESIGN.md](DESIGN.md).
 
@@ -477,9 +876,20 @@ The MIT License allows you to freely use, copy, modify, merge, publish, distribu
 
 ## Documentation
 
+### Architecture & Design
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System Architecture
 - [DESIGN.md](DESIGN.md) - Detailed Design Document
-- [README_THEME_ENGINE.md](README_THEME_ENGINE.md) - Theme Engine Documentation
+
+### Feature-Specific Documentation
+- [README_ADMIN.md](README_ADMIN.md) - Admin Panel Features
+- [README_AUTH.md](README_AUTH.md) - Authentication System
+- [README_POST_API.md](README_POST_API.md) - Post API Specification
+- [README_THEME_ENGINE.md](README_THEME_ENGINE.md) - Theme Engine
+
+### Testing
+- [tests/README.md](tests/README.md) - Test Execution Methods
+- [tests/e2e/README.md](tests/e2e/README.md) - E2E Tests
+- [tests/integration/README.md](tests/integration/README.md) - Integration Tests
 
 ## Contributing
 
