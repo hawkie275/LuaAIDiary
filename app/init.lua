@@ -576,6 +576,11 @@ app:get("/api/settings/ai-preferences", function(self)
     return admin_controller.get_ai_preferences(self)
 end)
 
+-- AI設定のデフォルト値取得
+app:get("/api/settings/ai-preferences/defaults", function(self)
+    return admin_controller.get_default_ai_preferences(self)
+end)
+
 -- AI設定更新
 app:put("/api/settings/ai-preferences", function(self)
     return admin_controller.update_ai_preferences(self)

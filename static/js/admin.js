@@ -204,6 +204,31 @@ function showArticleResult(result) {
 // AI設定管理機能
 // ========================================
 
+// デフォルト値を取得してフォームに設定
+async function resetToDefaultPrompts() {
+    try {
+        const response = await fetch('/api/settings/ai-preferences/defaults');
+        if (!response.ok) {
+            throw new Error('デフォルト値の取得に失敗しました');
+        }
+        
+        const defaults = await response.json();
+        
+        // フォームにデフォルト値を設定
+        document.getElementById('gemini-model').value = defaults.model;
+        document.getElementById('default-tone').value = defaults.default_tone;
+        document.getElementById('default-target-audience').value = defaults.default_target_audience;
+        document.getElementById('auto-proofread').checked = defaults.auto_proofread;
+        document.getElementById('proofread-prompt').value = defaults.proofread_prompt;
+        document.getElementById('generate-article-prompt').value = defaults.generate_article_prompt;
+        
+        alert('デフォルト値に戻しました。「設定を保存」ボタンをクリックして保存してください。');
+    } catch (error) {
+        console.error('デフォルト値の取得エラー:', error);
+        alert('デフォルト値の取得に失敗しました: ' + error.message);
+    }
+}
+
 // AI設定読み込み
 async function loadAISettings() {
     try {
@@ -437,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (btnResetPrompts) {
             btnResetPrompts.addEventListener('click', () => {
                 if (confirm('プロンプトをデフォルトに戻しますか？')) {
-                    loadAISettings();
+                    resetToDefaultPrompts();
                 }
             });
         }
