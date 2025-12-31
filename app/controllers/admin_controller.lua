@@ -1401,4 +1401,70 @@ function AdminController.delete_gemini_api_key(self)
     return { json = { success = true, message = "APIキーを削除しました" } }
 end
 
+-- AI設定のデフォルト値を取得
+-- GET /api/settings/ai-preferences/defaults
+function AdminController.get_default_ai_preferences(self)
+    -- 認証チェック
+    local user, session, err = get_authenticated_user()
+    if not user then
+        ngx.status = 401
+        return { json = { error = "認証が必要です" } }
+    end
+    
+    -- デフォルト値はpostgresql/init/04_week7_ai_settings.sqlの
+    -- トリガー関数（行72-120）で定義されている値と同じ
+    local defaults = {
+        model = 'gemini-2.5-flash',
+        default_tone = 'formal',
+        default_target_audience = '小学校6年生',
+        auto_proofread = false,
+        proofread_prompt = [[あなたは経験豊富な編集者です。以下のブログ記事を校正してください。
+
+【記事本文】
+{content}
+
+【校正方針】
+- トーン: {tone}
+- 文法、表現、構成の改善を提案してください
+
+**重要**: 必ず以下の形式の有効なJSONのみを返してください。コードブロック記号（```json など）や余分な説明文は一切含めず、純粋なJSON形式のみを出力してください：
+{
+  "corrected": "校正後の全文",
+  "suggestions": [
+    {
+      "type": "grammar",
+      "original_text": "修正前のテキスト",
+      "suggested_text": "修正後のテキスト",
+      "reason": "修正理由の説明"
+    }
+  ]
+}]],
+        generate_article_prompt = [[あなたはプロのライターです。以下の条件で完全な記事を執筆してください。
+
+【条件】
+- テーマ: {topic}
+- キーワード: {keywords}
+- 対象読者: {target_audience}
+- 目標文字数: {word_count}文字
+- トーン: {tone}
+
+【要求事項】
+1. 記事全体をMarkdown形式で執筆してください
+2. 適切な見出し（H2, H3）を使用してください
+3. 導入、本文、結論の構成にしてください
+4. SEOを意識した内容にしてください
+5. 読者にとって価値のある具体的な情報を含めてください
+
+**重要**: 必ず以下の形式の有効なJSONのみを返してください。コードブロック記号（```json など）や余分な説明文は一切含めず、純粋なJSON形式のみを出力してください：
+{
+  "title": "魅力的なタイトル",
+  "content": "完全な記事本文（Markdown形式）",
+  "meta_description": "SEO用のメタディスクリプション（120〜160文字）",
+  "tags": ["タグ1", "タグ2", "タグ3"]
+}]]
+    }
+    
+    return { json = defaults }
+end
+
 return AdminController
