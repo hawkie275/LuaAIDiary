@@ -23,14 +23,19 @@ LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、PostgreSQL、Redisを使
 
 ## ⚡ パフォーマンス
 
-LuaAIDiary は高性能CMSとして設計されており、以下のベンチマーク結果を達成しています：
+LuaAIDiary は高性能CMSとして設計されています。以下は**ローカル環境でのベンチマーク結果**（参考値）です：
 
 - **スループット**: 70,405 req/sec
 - **レイテンシ**: 2.83ms（平均）
-- **スケール**: 日間60億PV、月間1.8兆PVに対応可能
-- **評価**: ⭐⭐⭐⭐⭐ エンタープライズグレード
 
-*ベンチマーク環境: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)*
+*ローカルベンチマーク環境: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)*
+
+**⚠️ 注意**: これらは隔離された環境での合成ベンチマークによる参考値です。本番環境でのパフォーマンスは以下の要因により大きく異なります：
+- ネットワークレイテンシと帯域幅
+- データベースサイズとクエリの複雑性
+- 同時アクセスパターンとトラフィックの急増
+- インフラ構成（CDN、ロードバランサーなど）
+- セキュリティ層やサードパーティ統合
 
 📊 **詳細なパフォーマンスレポート**: [`tests/performance/results/performance_improvement_report.md`](tests/performance/results/performance_improvement_report.md)
 

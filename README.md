@@ -23,14 +23,19 @@ LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJI
 
 ## ⚡ Performance
 
-LuaAIDiary is designed as a high-performance CMS, achieving the following benchmark results:
+LuaAIDiary is designed as a high-performance CMS. The following results are from **local benchmark testing** for reference purposes:
 
 - **Throughput**: 70,405 req/sec
 - **Latency**: 2.83ms average
-- **Scale**: Capable of handling 6 billion PV/day, 1.8 trillion PV/month
-- **Rating**: ⭐⭐⭐⭐⭐ Enterprise Grade
 
-*Benchmark Environment: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)*
+*Local Benchmark Environment: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)*
+
+**⚠️ Note**: These are reference values from synthetic benchmarks in an isolated environment. Production performance will vary significantly depending on:
+- Network latency and bandwidth
+- Database size and query complexity
+- Concurrent user patterns and traffic spikes
+- Infrastructure configuration (CDN, load balancers, etc.)
+- Security layers and third-party integrations
 
 📊 **Detailed Performance Report**: [`tests/performance/results/performance_improvement_report.md`](tests/performance/results/performance_improvement_report.md)
 
