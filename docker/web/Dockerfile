@@ -31,6 +31,10 @@ RUN luarocks-5.1 install lapis \
 # 作業ディレクトリの設定
 WORKDIR /app
 
+# Nginxキャッシュディレクトリの作成
+RUN mkdir -p /var/cache/nginx/luaaidiary \
+    && chown -R nobody:nobody /var/cache/nginx/luaaidiary
+
 # ポート80を公開
 EXPOSE 80
 

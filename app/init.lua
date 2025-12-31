@@ -51,27 +51,27 @@ app:get("/", function(self)
     return theme_controller.index()
 end)
 
--- 検索: /search（具体的なルートを先に定義）
+-- 検索: /search
 app:get("/search", function(self)
     return theme_controller.search()
 end)
 
--- カテゴリーアーカイブ: /category/:slug（具体的なルートを先に定義）
+-- カテゴリーアーカイブ: /category/:slug
 app:get("/category/:slug", function(self)
     return theme_controller.category(self.params.slug)
 end)
 
--- タグアーカイブ: /tag/:slug（具体的なルートを先に定義）
+-- タグアーカイブ: /tag/:slug
 app:get("/tag/:slug", function(self)
     return theme_controller.tag(self.params.slug)
 end)
 
--- 著者アーカイブ: /author/:username（具体的なルートを先に定義）
+-- 著者アーカイブ: /author/:username
 app:get("/author/:username", function(self)
     return theme_controller.author(self.params.username)
 end)
 
--- 単一投稿: /posts/:slug（具体的なルートを先に定義）
+-- 単一投稿: /posts/:slug
 app:get("/posts/:slug", function(self)
     return theme_controller.single(self.params.slug)
 end)
