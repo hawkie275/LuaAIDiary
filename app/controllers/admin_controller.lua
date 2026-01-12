@@ -10,6 +10,7 @@ local UserSettings = require("models.user_settings")
 local csrf = require("middleware.csrf")
 local db_config = require("config.database")
 local etlua = require("etlua")
+local cache_service = require("services.cache_service")
 
 local AdminController = {}
 
@@ -702,7 +703,10 @@ function AdminController.posts_delete(self)
     if not ok then
         return { redirect_to = "/admin/posts?error=delete_failed", status = 302 }
     end
-    
+
+    -- キャッシュを無効化
+    cache_service.invalidate_all()
+
     return { redirect_to = "/admin/posts?deleted=1", status = 302 }
 end
 

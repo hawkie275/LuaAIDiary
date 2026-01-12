@@ -5,6 +5,7 @@ local Base = require("models.base")
 local slug_util = require("utils.slug")
 local validator = require("utils.validator")
 local db_config = require("config.database")
+local cache_service = require("services.cache_service")
 
 local _M = Base.new("posts")
 
@@ -82,7 +83,10 @@ function _M.create_post(data)
     if not success then
         return nil, result
     end
-    
+
+    -- キャッシュを無効化
+    cache_service.invalidate_all()
+
     return result, nil
 end
 
@@ -163,7 +167,12 @@ function _M.update_post(id, data)
         
         return true
     end)
-    
+
+    -- 成功時にキャッシュを無効化
+    if success then
+        cache_service.invalidate_all()
+    end
+
     return success, result
 end
 

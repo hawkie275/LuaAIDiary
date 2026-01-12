@@ -25,6 +25,16 @@ local CACHE_KEY_PREFIX = "page_cache:"
 -- キャッシュキー生成
 -- ========================================
 
+-- キャッシュバージョンを取得（共有辞書から）
+-- @return number キャッシュバージョン
+local function get_cache_version()
+  local dict = ngx.shared.cache
+  if not dict then
+    return 0
+  end
+  return dict:get("cache_version") or 0
+end
+
 -- リクエストのURIとクエリパラメータからキャッシュキーを生成
 -- @param uri string リクエストURI
 -- @param args table クエリパラメータ（オプション）
@@ -34,9 +44,11 @@ function M.generate_cache_key(uri, args)
     ngx.log(ngx.ERR, "ページキャッシュ: URIが指定されていません")
     return nil
   end
-  
-  local key = CACHE_KEY_PREFIX .. uri
-  
+
+  -- キャッシュバージョンをキーに含める（バージョン変更時に自動的にキャッシュミス）
+  local version = get_cache_version()
+  local key = CACHE_KEY_PREFIX .. "v" .. version .. ":" .. uri
+
   -- クエリパラメータがある場合は追加
   if args and type(args) == "table" and next(args) then
     -- パラメータをソートして一貫性のあるキーを生成
@@ -45,10 +57,10 @@ function M.generate_cache_key(uri, args)
       table.insert(sorted_params, k .. "=" .. tostring(v))
     end
     table.sort(sorted_params)
-    
+
     key = key .. "?" .. table.concat(sorted_params, "&")
   end
-  
+
   return key
 end
 
