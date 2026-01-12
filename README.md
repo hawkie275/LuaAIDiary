@@ -43,7 +43,7 @@ LuaAIDiary is designed as a high-performance CMS. The following results are from
 
 - **Web Framework**: Lapis (OpenResty/Nginx + LuaJIT)
 - **Database**: PostgreSQL 15 (full-text search, JSONB support)
-- **Cache/Session**: Redis 7
+- **Session Store**: Redis 7
 - **AI Integration**: Google Gemini API
 - **Test Framework**: Busted
 - **Static Analysis**: Luacheck

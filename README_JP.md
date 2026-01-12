@@ -43,7 +43,7 @@ LuaAIDiary は高性能CMSとして設計されています。以下は**ロー�
 
 - **Webフレームワーク**: Lapis (OpenResty/Nginx + LuaJIT)
 - **データベース**: PostgreSQL 15（全文検索、JSONB対応）
-- **キャッシュ/セッション**: Redis 7
+- **セッションストア**: Redis 7
 - **AI統合**: Google Gemini API
 - **テストフレームワーク**: Busted
 - **静的解析**: Luacheck
