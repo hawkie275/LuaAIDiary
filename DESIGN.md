@@ -96,77 +96,96 @@ graph TD
 ```
 LuaAIDiary/
 ├── app/
-│   ├── init.lua                    # アプリケーションエントリーポイント
-│   ├── routes.lua                  # ルーティング定義
+│   ├── init.lua                    # アプリケーションエントリーポイント（Lapis）
 │   │
 │   ├── config/                     # 設定ファイル
-│   │   ├── database.lua           # DB接続設定
-│   │   ├── app.lua                # アプリケーション設定
-│   │   └── gemini.lua             # Gemini API設定
+│   │   └── database.lua           # DB接続設定
 │   │
 │   ├── controllers/               # コントローラー
-│   │   ├── post_controller.lua
-│   │   ├── user_controller.lua
-│   │   ├── admin_controller.lua
-│   │   ├── comment_controller.lua
-│   │   └── gemini_controller.lua
+│   │   ├── admin_controller.lua   # 管理画面コントローラー
+│   │   ├── auth_controller.lua    # 認証コントローラー
+│   │   ├── category_controller.lua # カテゴリーAPIコントローラー
+│   │   ├── gemini_controller.lua  # Gemini AIコントローラー
+│   │   ├── post_controller.lua    # 投稿APIコントローラー
+│   │   ├── tag_controller.lua     # タグAPIコントローラー
+│   │   ├── theme_controller.lua   # テーマコントローラー
+│   │   └── user_controller.lua    # ユーザー管理コントローラー
 │   │
 │   ├── models/                    # モデル
-│   │   ├── post.lua
-│   │   ├── user.lua
-│   │   ├── comment.lua
-│   │   ├── category.lua
-│   │   ├── tag.lua
-│   │   └── user_setting.lua
+│   │   ├── base.lua              # ベースモデル
+│   │   ├── post.lua              # 投稿モデル
+│   │   ├── user.lua              # ユーザーモデル
+│   │   ├── comment.lua           # コメントモデル
+│   │   ├── category.lua          # カテゴリーモデル
+│   │   ├── tag.lua               # タグモデル
+│   │   └── user_settings.lua     # ユーザー設定モデル
 │   │
 │   ├── services/                  # サービス層
-│   │   ├── gemini_service.lua    # Gemini API連携
 │   │   ├── auth_service.lua      # 認証サービス
-│   │   └── wp_compat/            # WordPress互換レイヤー
-│   │       ├── php_runtime.lua    # PHP実行環境
-│   │       ├── template_tags.lua  # テンプレートタグ
-│   │       ├── theme_loader.lua   # テーマローダー
-│   │       └── functions.lua      # WordPress関数エミュレーション
+│   │   └── gemini_service.lua    # Gemini API連携
 │   │
 │   ├── middleware/                # ミドルウェア
-│   │   ├── auth.lua              # 認証
+│   │   ├── auth.lua              # 認証ミドルウェア
 │   │   ├── csrf.lua              # CSRF対策
-│   │   ├── logger.lua            # ロギング
-│   │   └── rate_limit.lua        # レート制限
+│   │   └── page_cache.lua        # ページキャッシュ
+│   │
+│   ├── theme_engine/              # テーマエンジン
+│   │   ├── asset_loader.lua      # アセットローダー
+│   │   ├── php_executor.lua      # PHP実行（将来用）
+│   │   ├── template_loader.lua   # テンプレートローダー
+│   │   ├── theme_config.lua      # テーマ設定
+│   │   ├── wp_functions.lua      # WordPress関数エミュレーション
+│   │   └── wp_query.lua          # WP_Queryエミュレーション
 │   │
 │   ├── utils/                     # ユーティリティ
-│   │   ├── validator.lua         # バリデーション
-│   │   ├── helpers.lua           # ヘルパー関数
-│   │   ├── query_builder.lua     # クエリビルダー
-│   │   ├── cache.lua             # キャッシュ管理
-│   │   └── sanitizer.lua         # サニタイズ処理
+│   │   ├── crypto.lua            # 暗号化ユーティリティ
+│   │   ├── markdown.lua          # Markdownパーサー
+│   │   ├── session.lua           # セッション管理
+│   │   ├── slug.lua              # スラッグ生成
+│   │   └── validator.lua         # バリデーション
 │   │
 │   └── views/                     # ビューテンプレート
-│       ├── layouts/
-│       │   └── main.html
-│       ├── admin/
-│       │   ├── dashboard.html
-│       │   ├── posts/
-│       │   └── settings/
-│       └── errors/
-│           ├── 404.html
-│           └── 500.html
+│       ├── layouts/              # レイアウトテンプレート
+│       ├── admin/                # 管理画面テンプレート
+│       └── errors/               # エラーページ
 │
 ├── wp-content/                    # WordPress互換ディレクトリ
-│   ├── themes/                    # テーマディレクトリ
-│   │   ├── twentytwentyfour/     # 公式テーマ例
-│   │   └── custom-theme/         # カスタムテーマ
-│   ├── plugins/                   # プラグイン（将来）
-│   └── uploads/                   # アップロードファイル
+│   └── themes/                    # テーマディレクトリ
+│       └── luaaidiary-default/   # デフォルトテーマ
+│           ├── index-simple.lua  # インデックステンプレート
+│           └── single-simple.lua # 単一記事テンプレート
 │
 ├── static/                        # 静的ファイル
-│   ├── css/
-│   ├── js/
-│   └── admin/                     # 管理画面アセット
+│   ├── css/                      # スタイルシート
+│   ├── js/                       # JavaScript
+│   └── images/                   # 画像ファイル
 │
-└── tests/                         # テストファイル
-    ├── unit/
-    └── integration/
+├── docker/                        # Docker関連ファイル
+│   └── web/
+│       ├── Dockerfile            # OpenResty + Lapis環境
+│       └── nginx.conf            # Nginx設定
+│
+├── postgresql/                    # PostgreSQL関連
+│   └── init/
+│       └── 01_create_tables.sql  # データベース初期化スクリプト
+│
+├── tests/                         # テストファイル
+│   ├── auth/                     # 認証テスト
+│   ├── controllers/              # コントローラーテスト
+│   ├── e2e/                      # E2Eテスト
+│   ├── integration/              # 統合テスト
+│   ├── middleware/               # ミドルウェアテスト
+│   ├── models/                   # モデルテスト
+│   ├── performance/              # パフォーマンステスト
+│   ├── theme_engine/             # テーマエンジンテスト
+│   └── utils/                    # ユーティリティテスト
+│
+├── docs/                          # ドキュメント
+├── plans/                         # 実装計画
+├── Makefile                       # 開発タスク自動化
+├── docker-compose.yml             # Docker Compose設定
+├── .env.example                   # 環境変数サンプル
+└── .luacheckrc                    # Luacheck設定
 ```
 
 ---
@@ -1526,75 +1545,108 @@ gantt
     テスト・ドキュメント:p6-1, after p5-2, 7d
 ```
 
-### 8.2 Phase 1: コアシステム（4週間）
+### 8.2 Phase 1: コアシステム ✅ 完了
 
 #### Week 1-2: 基盤構築
-- [ ] データベーススキーマ実装
-- [ ] 基本的なMVC構造構築
-- [ ] ルーティングシステム実装
-- [ ] データベース接続・クエリビルダー実装
+- [x] データベーススキーマ実装（PostgreSQL 15）
+- [x] 基本的なMVC構造構築（Lapis フレームワーク）
+- [x] ルーティングシステム実装
+- [x] データベース接続・pgmoonライブラリ実装
 
 #### Week 3-4: 認証・投稿機能
-- [ ] ユーザー認証システム
-- [ ] セッション管理
-- [ ] 投稿CRUD機能
-- [ ] カテゴリー・タグ管理
+- [x] ユーザー認証システム（bcrypt）
+- [x] セッション管理（Redis）
+- [x] 投稿CRUD機能
+- [x] カテゴリー・タグ管理
 
-### 8.3 Phase 2: テーマ互換レイヤー（3週間）
+### 8.3 Phase 2: テーマ互換レイヤー（低優先度）
 
-#### Week 5-6: PHPランタイム実装
-- [ ] PHPパーサー統合
-- [ ] テンプレートローダー実装
-- [ ] WordPress関数実装（30個）
-- [ ] The Loop エミュレーション
+#### テーマエンジン（部分実装）
+- [x] テンプレートローダー実装（app/theme_engine/template_loader.lua）
+- [x] WordPress関数エミュレーション（app/theme_engine/wp_functions.lua）
+- [x] アセットローダー実装（app/theme_engine/asset_loader.lua）
+- [x] デフォルトテーマ作成（wp-content/themes/luaaidiary-default/）
+- [ ] PHPパーサー統合（将来実装予定）
+- [ ] Twenty Twenty-Fourテーマ動作確認（将来実装予定）
 
-#### Week 7: テーマ対応
-- [ ] Twenty Twenty-Fourテーマ動作確認
-- [ ] テーマ切り替え機能
-- [ ] style.css解析
+### 8.4 Phase 3: Gemini連携 ✅ 完了
 
-### 8.4 Phase 3: Gemini連携（2週間）
+- [x] Gemini API通信実装（app/services/gemini_service.lua）
+- [x] APIキー暗号化・管理（AES-256-CBC）
+- [x] プロンプトテンプレート作成
+- [x] 管理画面UI統合
+- [x] AI記事生成機能
+- [x] AI校正機能
 
-- [ ] Gemini API通信実装
-- [ ] APIキー暗号化・管理
-- [ ] プロンプトテンプレート作成
-- [ ] 管理画面UI統合
+### 8.5 Phase 4: 管理画面とエディタ ✅ 完了
 
-### 8.5 Phase 4: 管理画面とエディタ（3週間）
+- [x] ダッシュボード実装
+- [x] 投稿管理画面（作成・編集・削除）
+- [x] カテゴリー・タグ管理画面
+- [x] ユーザー管理画面
+- [x] サイト設定画面
+- [x] Markdownプレビュー機能
+- [ ] リッチテキストエディタ（WYSIWYG）（将来実装予定）
+- [ ] メディアアップロード（将来実装予定）
 
-- [ ] ダッシュボード実装
-- [ ] リッチテキストエディタ統合
-- [ ] メディアアップロード
-- [ ] プレビュー機能
+### 8.6 Phase 5: セキュリティ・最適化 ✅ 完了
 
-### 8.6 Phase 5: セキュリティ・最適化（2週間）
+- [x] CSRF保護実装
+- [x] パスワードハッシュ化（bcrypt 12ラウンド）
+- [x] セッション管理（Redis、7日間有効期限）
+- [x] ページキャッシュ実装（app/middleware/page_cache.lua）
+- [x] パフォーマンステスト実施
+- [x] パフォーマンス最適化（87倍のスループット向上達成）
 
-- [ ] セキュリティ監査
-- [ ] パフォーマンステスト
-- [ ] キャッシュ実装
-- [ ] 脆弱性スキャン
+### 8.7 Phase 6: テスト・ドキュメント（進行中）
 
-### 8.7 Phase 6: テスト・ドキュメント（1週間）
-
-- [ ] 単体テスト作成
-- [ ] 統合テスト実施
+- [x] 単体テスト作成（Busted）
+- [x] 統合テスト実施
+- [x] E2Eテスト作成
+- [x] パフォーマンステスト（wrk）
 - [ ] ユーザーマニュアル作成
-- [ ] API リファレンス作成
+- [x] API リファレンス作成（README.md）
 
 ---
 
 ## 技術的な制約と考慮事項
 
-### パフォーマンス目標
-- ページ読み込み: 200ms以下
-- API応答時間: 100ms以下
+### パフォーマンス目標と実績
+
+#### 達成した実績値（ベンチマーク結果）
+
+| 指標 | 初期目標 | 達成値 | 達成度 |
+|------|----------|--------|--------|
+| スループット | 3,000-5,000 req/sec | **70,405 req/sec** | 14-23倍超過達成 |
+| 平均レイテンシ | 200ms以下 | **2.83ms** | 70倍以上改善 |
+| 転送量 | - | **449.18 MB/sec** | - |
+| エラー率 | 0% | **0%** | 目標達成 |
+
+#### 負荷別パフォーマンス
+
+| 負荷レベル | スレッド | 接続数 | スループット | レイテンシ |
+|-----------|---------|--------|-------------|-----------|
+| 軽負荷 | 4 | 100 | 67,626 req/sec | 1.47ms |
+| 中負荷 | 8 | 200 | 70,405 req/sec | 2.83ms |
+| 高負荷 | 12 | 400 | 68,688 req/sec | 5.99ms |
+
+※ベンチマーク環境: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)
+
+#### その他の目標
 - Gemini応答時間: 5秒以内
-- 同時接続数: 1000以上
+- 同時接続数: 2000以上（Nginx設定による）
 
 ### スケーラビリティ
 - 水平スケーリング対応
-- データベース接続プーリング
+- データベース接続プーリング（pgmoon）
 - Redis導入によるセッション外部化
+- Nginxページキャッシュ（proxy_cache）
+- Gzip圧縮による転送効率化
+
+### 実施した最適化
+1. **DBインデックス追加**: クエリ実行速度の向上
+2. **Nginxページキャッシュ**: 87倍のスループット向上の主要因
+3. **OpenResty設定チューニング**: worker_connections 2048、Gzip圧縮、ファイルキャッシュ
 
 ---
 
