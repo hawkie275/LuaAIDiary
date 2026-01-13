@@ -9,7 +9,7 @@ SET preferences = jsonb_set(
     jsonb_build_object(
         'model', 'gemini-2.5-flash',
         'default_tone', 'formal',
-        'default_target_audience', '小学校6年生',
+        'default_target_audience', '中級者',
         'auto_proofread', false,
         'custom_prompts', '{}'::jsonb,
         'proofread_prompt', 'あなたは経験豊富な編集者です。以下のブログ記事を校正してください。
@@ -71,7 +71,7 @@ BEGIN
             jsonb_build_object(
                 'model', 'gemini-2.5-flash',
                 'default_tone', 'formal',
-                'default_target_audience', '小学校6年生',
+                'default_target_audience', '中級者',
                 'auto_proofread', false,
                 'custom_prompts', '{}'::jsonb,
                 'proofread_prompt', 'あなたは経験豊富な編集者です。以下のブログ記事を校正してください。
