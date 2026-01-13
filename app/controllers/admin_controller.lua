@@ -1228,25 +1228,89 @@ function AdminController.get_ai_preferences(self)
         ngx.status = 401
         return { json = { success = false, error = "認証が必要です" } }
     end
-    
+
     -- ユーザー設定を取得
     local user_settings_record, err = UserSettings.get_settings(user.id)
     if not user_settings_record then
         ngx.status = 404
         return { json = { success = false, error = err or "ユーザー設定が見つかりません" } }
     end
-    
+
     -- プリファレンスを取得
     local preferences, pref_err = UserSettings.get_preferences(user.id)
     if not preferences then
         preferences = {}
     end
-    
-    local ai_preferences = preferences.ai_preferences or {}
-    
+
+    local user_ai_preferences = preferences.ai_preferences or {}
+
+    -- デフォルト値を定義（get_default_ai_preferencesと同じ値）
+    local defaults = {
+        model = 'gemini-2.5-flash',
+        default_tone = 'formal',
+        default_target_audience = '中級者',
+        auto_proofread = false,
+        proofread_prompt = [[あなたは経験豊富な編集者です。以下のブログ記事を校正してください。
+
+【記事本文】
+{content}
+
+【校正方針】
+- トーン: {tone}
+- 文法、表現、構成の改善を提案してください
+
+**重要**: 必ず以下の形式の有効なJSONのみを返してください。コードブロック記号（```json など）や余分な説明文は一切含めず、純粋なJSON形式のみを出力してください：
+{
+  "corrected": "校正後の全文",
+  "suggestions": [
+    {
+      "type": "grammar",
+      "original_text": "修正前のテキスト",
+      "suggested_text": "修正後のテキスト",
+      "reason": "修正理由の説明"
+    }
+  ]
+}]],
+        generate_article_prompt = [[あなたはプロのライターです。以下の条件で完全な記事を執筆してください。
+
+【条件】
+- テーマ: {topic}
+- キーワード: {keywords}
+- 対象読者: {target_audience}
+- 目標文字数: {word_count}文字
+- トーン: {tone}
+
+【要求事項】
+1. 記事全体をMarkdown形式で執筆してください
+2. 適切な見出し（H2, H3）を使用してください
+3. 導入、本文、結論の構成にしてください
+4. SEOを意識した内容にしてください
+5. 読者にとって価値のある具体的な情報を含めてください
+
+**重要**: 必ず以下の形式の有効なJSONのみを返してください。コードブロック記号（```json など）や余分な説明文は一切含めず、純粋なJSON形式のみを出力してください：
+{
+  "title": "魅力的なタイトル",
+  "content": "完全な記事本文（Markdown形式）",
+  "meta_description": "SEO用のメタディスクリプション（120〜160文字）",
+  "tags": ["タグ1", "タグ2", "タグ3"]
+}]]
+    }
+
+    -- デフォルト値とユーザー設定をマージ（ユーザー設定を優先、ただし空文字列は除く）
+    local ai_preferences = {}
+    for k, v in pairs(defaults) do
+        ai_preferences[k] = v
+    end
+    for k, v in pairs(user_ai_preferences) do
+        -- 空文字列でない場合のみユーザー設定で上書き
+        if v ~= nil and v ~= "" then
+            ai_preferences[k] = v
+        end
+    end
+
     -- APIキーの存在確認（値は返さない）
     local has_api_key = user_settings_record.gemini_api_key and user_settings_record.gemini_api_key ~= ""
-    
+
     return {
         json = {
             success = true,
@@ -1420,7 +1484,7 @@ function AdminController.get_default_ai_preferences(self)
     local defaults = {
         model = 'gemini-2.5-flash',
         default_tone = 'formal',
-        default_target_audience = '小学校6年生',
+        default_target_audience = '中級者',
         auto_proofread = false,
         proofread_prompt = [[あなたは経験豊富な編集者です。以下のブログ記事を校正してください。
 
