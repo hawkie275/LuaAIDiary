@@ -70,7 +70,7 @@ LuaAIDiary/
 │   ├── models/                # Model layer
 │   ├── views/                 # View layer (templates)
 │   ├── middleware/            # Middleware
-│   ├── theme_engine/          # Theme engine (WordPress compatibility)
+│   ├── theme_engine/          # Theme engine (experimental - pending)
 │   └── utils/                 # Utility functions
 ├── tests/                     # Test code
 │   ├── test_helper.lua        # Test helper
@@ -788,7 +788,7 @@ make build
 - **models/**: Data models
 - **middleware/**: Middleware for authentication, CSRF protection, etc.
 - **utils/**: Helper functions, validation, etc.
-- **theme_engine/**: WordPress-compatible theme engine
+- **theme_engine/**: WordPress-compatible theme engine (experimental - pending)
 
 ### `/tests` - Test Code
 

@@ -803,10 +803,10 @@ GEMINI_API_KEY=your_gemini_api_key_here
 - ✅ セッション管理（Redis）
 - ✅ CSRF対策
 
-### Phase 2: テーマ互換レイヤー ✅ 完了
-- ✅ WordPressテーマローダー
-- ✅ WordPress関数エミュレーション
-- ✅ テンプレートエンジン統合
+### Phase 2: テーマ互換レイヤー（優先度低・ペンディング）
+- [ ] WordPressテーマローダー
+- [ ] WordPress関数エミュレーション
+- [ ] テンプレートエンジン統合
 
 ### Phase 3: Gemini連携 ✅ 完了
 - ✅ Gemini API統合
