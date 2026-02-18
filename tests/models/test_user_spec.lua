@@ -126,67 +126,7 @@ describe("ユーザーモデル", function()
             return hmac
         end
         
-        -- bitモジュールのモック
-        package.preload["bit"] = function()
-            local bit = {}
-            function bit.bor(a, b)
-                local result = 0
-                local bitval = 1
-                while a > 0 or b > 0 do
-                    local a_bit = a % 2
-                    local b_bit = b % 2
-                    if a_bit == 1 or b_bit == 1 then
-                        result = result + bitval
-                    end
-                    bitval = bitval * 2
-                    a = math.floor(a / 2)
-                    b = math.floor(b / 2)
-                end
-                return result
-            end
-            
-            function bit.band(a, b)
-                local result = 0
-                local bitval = 1
-                while a > 0 and b > 0 do
-                    local a_bit = a % 2
-                    local b_bit = b % 2
-                    if a_bit == 1 and b_bit == 1 then
-                        result = result + bitval
-                    end
-                    bitval = bitval * 2
-                    a = math.floor(a / 2)
-                    b = math.floor(b / 2)
-                end
-                return result
-            end
-            
-            function bit.bxor(a, b)
-                local result = 0
-                local bitval = 1
-                while a > 0 or b > 0 do
-                    local a_bit = a % 2
-                    local b_bit = b % 2
-                    if a_bit ~= b_bit then
-                        result = result + bitval
-                    end
-                    bitval = bitval * 2
-                    a = math.floor(a / 2)
-                    b = math.floor(b / 2)
-                end
-                return result
-            end
-            
-            function bit.lshift(x, n)
-                return math.floor(x * (2 ^ n))
-            end
-            
-            function bit.rshift(x, n)
-                return math.floor(x / (2 ^ n))
-            end
-            
-            return bit
-        end
+        -- bitモジュールは本物を使用
         
         -- Luaパスを設定
         package.path = '/app/?.lua;/app/?/init.lua;' .. package.path

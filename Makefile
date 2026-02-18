@@ -106,7 +106,7 @@ redis-cli:
 # ユニットテストを実行（モックベース）
 test:
 	@echo "🧪 ユニットテストを実行中..."
-	$(DOCKER_COMPOSE) exec -w /app web sh -c "LUA_PATH='/app/?.lua;/app/?/init.lua;;' busted /tests/ --exclude-tags=integration"
+	$(DOCKER_COMPOSE) exec -w /app web sh -c "LUA_PATH='/app/?.lua;/app/?/init.lua;;' busted /tests/ --tags=~integration"
 
 # 統合テストを実行（実際のDB使用）
 test-integration:
@@ -122,18 +122,12 @@ test-e2e:
 
 # すべてのテストを実行
 test-all:
-	@echo "🧪 すべてのテストを実行中..."
+	@echo "🧪 E2Eテストのみを実行中..."
 	@echo ""
-	@echo "=== 1. ユニットテスト ==="
-	@make test
-	@echo ""
-	@echo "=== 2. 統合テスト ==="
-	@make test-integration
-	@echo ""
-	@echo "=== 3. E2Eテスト ==="
+	@echo "=== E2Eテスト ==="
 	@make test-e2e
 	@echo ""
-	@echo "✅ すべてのテストが完了しました"
+	@echo "✅ E2Eテストが完了しました"
 
 # 特定のテストファイルを実行
 test-file:

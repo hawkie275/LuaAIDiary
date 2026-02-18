@@ -2,9 +2,9 @@
 -- モックを使わずに実際のデータベースとコードパスをテスト
 
 -- LUA_PATHを調整してヘルパーを読み込む
-package.path = package.path .. ";/tests/?.lua;/tests/?/init.lua"
+package.path = package.path .. ";/tests/?.lua;/tests/?/init.lua;/app/?.lua;/app/?/init.lua"
 
-describe("投稿モデル統合テスト", function()
+describe("投稿モデル統合テスト #integration", function()
   local helper = require("integration.test_helper_integration")
   local db
   local test_user_id
@@ -44,7 +44,7 @@ describe("投稿モデル統合テスト", function()
   
   describe("create_post", function()
     it("基本的な投稿を作成できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_data = {
         title = "TEST_統合テスト投稿",
@@ -69,7 +69,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("スラッグが自動生成されること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_data = {
         title = "TEST_自動スラッグ生成",
@@ -90,7 +90,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("カテゴリーとタグを関連付けられること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_data = {
         title = "TEST_カテゴリータグ付き投稿",
@@ -118,7 +118,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("公開ステータスの投稿で公開日時が設定されること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_data = {
         title = "TEST_公開投稿",
@@ -138,7 +138,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("タイトルが空の場合にエラーを返すこと", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_data = {
         title = "",
@@ -153,7 +153,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("著者IDが無い場合にエラーを返すこと", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_data = {
         title = "TEST_著者なし",
@@ -173,7 +173,7 @@ describe("投稿モデル統合テスト", function()
   
   describe("find_by_slug", function()
     it("スラッグで投稿を検索できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       -- テスト投稿を作成
       local post_id = helper.create_test_post(db, test_user_id, "TEST_スラッグ検索", "内容")
@@ -193,7 +193,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("存在しないスラッグでエラーを返すこと", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post, err = Post.find_by_slug("non-existent-slug-12345")
       
@@ -204,7 +204,7 @@ describe("投稿モデル統合テスト", function()
   
   describe("find_published", function()
     it("公開済み投稿のみを取得できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       -- 公開投稿を作成
       db:query(string.format([[
@@ -231,7 +231,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("limitとoffsetが機能すること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       -- 複数の公開投稿を作成
       for i = 1, 5 do
@@ -256,7 +256,7 @@ describe("投稿モデル統合テスト", function()
   
   describe("update_post", function()
     it("投稿を更新できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       -- テスト投稿を作成
       local post_id = helper.create_test_post(db, test_user_id, "TEST_更新前", "内容")
@@ -277,7 +277,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("ステータスを公開に変更すると公開日時が設定されること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       -- 下書き投稿を作成
       local post_id = helper.create_test_post(db, test_user_id, "TEST_下書き", "内容")
@@ -297,7 +297,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("存在しない投稿の更新でエラーを返すこと", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local ok, err = Post.update_post(99999, {title = "更新"})
       
@@ -312,7 +312,7 @@ describe("投稿モデル統合テスト", function()
   
   describe("カテゴリー・タグ管理", function()
     it("カテゴリーを追加できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_id = helper.create_test_post(db, test_user_id, "TEST_カテゴリー追加", "内容")
       
@@ -326,7 +326,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("タグを追加できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_id = helper.create_test_post(db, test_user_id, "TEST_タグ追加", "内容")
       
@@ -340,7 +340,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("カテゴリーを同期できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_id = helper.create_test_post(db, test_user_id, "TEST_カテゴリー同期", "内容")
       local category_id_2 = helper.create_test_category(db, "TEST_CATEGORY_2_" .. os.time())
@@ -358,7 +358,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("投稿のカテゴリーを取得できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_id = helper.create_test_post(db, test_user_id, "TEST_カテゴリー取得", "内容")
       Post.add_category(post_id, test_category_id, db)
@@ -372,7 +372,7 @@ describe("投稿モデル統合テスト", function()
     end)
     
     it("投稿のタグを取得できること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_id = helper.create_test_post(db, test_user_id, "TEST_タグ取得", "内容")
       Post.add_tag(post_id, test_tag_id, db)
@@ -392,7 +392,7 @@ describe("投稿モデル統合テスト", function()
   
   describe("トランザクション", function()
     it("トランザクション内で投稿とカテゴリーが同時に作成されること", function()
-      local Post = require("app.models.post")
+      local Post = require("models.post")
       
       local post_data = {
         title = "TEST_トランザクション投稿",
