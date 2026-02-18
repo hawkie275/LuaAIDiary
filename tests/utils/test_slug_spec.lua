@@ -1,4 +1,4 @@
-local slug_util = require("app.utils.slug")
+local slug_util = require("utils.slug")
 
 describe("slugify with Japanese characters", function()
     it("should convert kanji-only titles to hex slugs", function()

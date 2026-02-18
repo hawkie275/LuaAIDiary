@@ -15,6 +15,11 @@ function _M.setup_ngx_mock()
       WARN = 2,
       INFO = 3,
       DEBUG = 4,
+      encode_base64 = nil,
+      decode_base64 = nil,
+      get_phase = function()
+        return "init"
+      end,
       quote_sql_str = function(str)
         if not str then return "NULL" end
         -- シンプルなSQLエスケープ
@@ -22,6 +27,17 @@ function _M.setup_ngx_mock()
         return "'" .. escaped .. "'"
       end
     }
+  end
+
+  -- ngxのencode_base64/decode_base64を用意
+  if not _G.ngx.encode_base64 then
+    local mime = require("mime")
+    _G.ngx.encode_base64 = function(data)
+      return mime.b64(data)
+    end
+    _G.ngx.decode_base64 = function(data)
+      return mime.unb64(data)
+    end
   end
 end
 
@@ -40,7 +56,7 @@ function _M.setup_env()
     os.setenv("POSTGRES_USER", "luaaidiary")
   end
   if not os.getenv("POSTGRES_PASSWORD") then
-    os.setenv("POSTGRES_PASSWORD", "luaaidiary_pass")
+    os.setenv("POSTGRES_PASSWORD", "change_this_secure_password")
   end
 end
 
@@ -93,6 +109,7 @@ function _M.rollback_transaction(db)
   if not res then
     error("ロールバックエラー: " .. (err or "unknown"))
   end
+  db:disconnect()
   return true
 end
 
@@ -153,8 +170,8 @@ function _M.create_test_category(db, name)
   name = name or "TEST_CATEGORY_" .. os.time()
   
   local query = string.format([[
-    INSERT INTO categories (name, slug, created_at, updated_at)
-    VALUES ('%s', '%s', NOW(), NOW())
+    INSERT INTO categories (name, slug, created_at)
+    VALUES ('%s', '%s', NOW())
     RETURNING id
   ]], name, name:lower():gsub(" ", "-"))
   
@@ -172,8 +189,8 @@ function _M.create_test_tag(db, name)
   name = name or "TEST_TAG_" .. os.time()
   
   local query = string.format([[
-    INSERT INTO tags (name, slug, created_at, updated_at)
-    VALUES ('%s', '%s', NOW(), NOW())
+    INSERT INTO tags (name, slug, created_at)
+    VALUES ('%s', '%s', NOW())
     RETURNING id
   ]], name, name:lower():gsub(" ", "-"))
   

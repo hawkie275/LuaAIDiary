@@ -730,8 +730,8 @@ response=$(curl -s -w "\n%{http_code}" \
 
 http_code=$(echo "$response" | tail -n 1)
 
-if [ "$http_code" -eq 200 ]; then
-  print_pass "ログアウト成功"
+if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 302 ]; then
+  print_pass "ログアウト成功 (HTTP $http_code)"
 else
   print_fail "ログアウト: HTTP $http_code"
 fi

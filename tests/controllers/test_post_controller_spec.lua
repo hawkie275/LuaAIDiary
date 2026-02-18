@@ -26,7 +26,8 @@ describe("投稿コントローラー", function()
       req = {
         read_body = function() end,
         get_body_data = function() return nil end,
-        get_uri_args = function() return {} end
+        get_uri_args = function() return {} end,
+        get_headers = function() return {} end
       },
       var = {},
       log = function() end,
@@ -128,6 +129,12 @@ describe("投稿コントローラー", function()
         self.data[key] = value
       end
     }
+
+    -- CSRFトークンのデフォルト設定
+    mock_session.data.csrf_token = "test_csrf_token"
+    _G.ngx.req.get_headers = function()
+      return { ["x-csrf-token"] = "test_csrf_token" }
+    end
     
     -- Sessionモック
     package.preload["utils.session"] = function()
@@ -171,6 +178,12 @@ describe("投稿コントローラー", function()
       end,
       find_published = function(options)
         return {}, nil
+      end,
+      get_categories_batch = function(post_ids)
+        return {}
+      end,
+      get_tags_batch = function(post_ids)
+        return {}
       end,
       get_categories = function(post_id)
         return {}

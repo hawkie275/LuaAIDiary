@@ -16,7 +16,8 @@ RUN apk add --no-cache \
     unzip
 
 # 必要なLuaモジュールのインストール
-RUN luarocks-5.1 install lapis \
+RUN luarocks-5.1 install luabitop \
+    && luarocks-5.1 install lapis \
     && luarocks-5.1 install lua-resty-redis \
     && luarocks-5.1 install lua-resty-http \
     && luarocks-5.1 install lua-cjson \
