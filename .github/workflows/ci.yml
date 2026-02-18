@@ -45,24 +45,13 @@ jobs:
           curl -sSf http://localhost:8080/api/db-test
           curl -sSf http://localhost:8080/api/redis-test
 
-      - name: Run unit tests
-        run: make test
-
-      - name: Run integration tests
-        run: make test-integration
-
       - name: Run E2E tests
         env:
           BASE_URL: http://localhost:8080
           ADMIN_USER: admin
           ADMIN_PASS: admin123
         run: |
-          bash tests/e2e/test_post_api.sh
-          bash tests/e2e/test_category_tag_api.sh
-          bash tests/e2e/test_admin_dashboard.sh
-          bash tests/e2e/test_user_management.sh
-          bash tests/e2e/test_password_change.sh
-          bash tests/e2e/test_html_login.sh
+          make test-all
 
       - name: Cleanup
         if: always()
