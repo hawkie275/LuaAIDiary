@@ -45,13 +45,17 @@ jobs:
           curl -sSf http://localhost:8080/api/db-test
           curl -sSf http://localhost:8080/api/redis-test
 
+      - name: Prepare test user
+        run: |
+          docker compose exec -T db psql -U luaaidiary -d luaaidiary -c "DELETE FROM users WHERE username = 'e2e_ci_user';"
+
       - name: Run E2E tests
         env:
           BASE_URL: http://localhost:8080
           ADMIN_USER: admin
           ADMIN_PASS: admin123
         run: |
-          make test-all
+          TEST_USERNAME=e2e_ci_user TEST_EMAIL=e2e_ci_user@test.com TEST_PASSWORD=TestPass123! bash tests/e2e/test_post_api.sh
 
       - name: Cleanup
         if: always()
