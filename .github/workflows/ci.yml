@@ -47,7 +47,14 @@ jobs:
 
       - name: Prepare test user
         run: |
-          docker compose exec -T db psql -U luaaidiary -d luaaidiary -c "DELETE FROM users WHERE username = 'e2e_ci_user';"
+          for i in {1..15}; do
+            if docker compose exec -T db pg_isready -U luaaidiary -d luaaidiary; then
+              docker compose exec -T db psql -U luaaidiary -d luaaidiary -c "DELETE FROM users WHERE username = 'e2e_ci_user';"
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
 
       - name: Run E2E tests
         env:
