@@ -189,7 +189,7 @@ make psql          # PostgreSQL client
 make redis-cli     # Redis client
 
 # Run tests
-make test          # All tests
+make test          # E2E tests only
 
 # Reset database
 make db-reset

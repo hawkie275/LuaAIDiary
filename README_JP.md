@@ -184,7 +184,7 @@ make psql          # PostgreSQLクライアント
 make redis-cli     # Redisクライアント
 
 # テスト実行
-make test          # すべてのテスト
+make test          # E2Eテストのみ
 
 # データベースリセット
 make db-reset

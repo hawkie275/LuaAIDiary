@@ -22,7 +22,7 @@ help:
 	@echo "  make shell-db   - DBコンテナのシェルに入る"
 	@echo "  make psql       - PostgreSQLクライアントに接続"
 	@echo "  make redis-cli  - Redisクライアントに接続"
-	@echo "  make test           - ユニットテストを実行（モックベース）"
+	@echo "  make test           - E2Eテストを実行（HTTP経由）"
 	@echo "  make test-integration - 統合テストを実行（実際のDB使用）"
 	@echo "  make test-e2e       - E2Eテストを実行（HTTP経由）"
 	@echo "  make test-all       - すべてのテストを実行"
@@ -103,10 +103,10 @@ redis-cli:
 	@echo "📦 Redisクライアントに接続中..."
 	$(DOCKER_COMPOSE) exec redis redis-cli
 
-# ユニットテストを実行（モックベース）
+# E2Eテストを実行（HTTP経由）
 test:
-	@echo "🧪 ユニットテストを実行中..."
-	$(DOCKER_COMPOSE) exec -w /app web sh -c "LUA_PATH='/app/?.lua;/app/?/init.lua;;' busted /tests/ --tags=~integration"
+	@echo "🌐 E2Eテストを実行中（HTTP経由）..."
+	@make test-e2e
 
 # 統合テストを実行（実際のDB使用）
 test-integration:
