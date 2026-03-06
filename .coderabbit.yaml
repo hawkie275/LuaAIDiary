@@ -12,14 +12,12 @@ reviews:
     base_branches:
       - "main"
       - "staging"
-
-chat:
-  auto_reply: true
-
-reviews:
   path_instructions:
     - path: "docs/**"
       instructions: Document ファイルのためレビューは不要です。
 
     - path: "tests/**"
       instructions: Test ファイルのためレビューは不要です。
+
+chat:
+  auto_reply: true
