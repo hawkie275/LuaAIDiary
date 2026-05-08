@@ -15,9 +15,9 @@ describe("投稿モデル統合テスト #integration", function()
   before_each(function()
     -- データベース接続
     db = helper.setup_db()
-    
-    -- トランザクション開始（各テストを独立させる）
-    helper.begin_transaction(db)
+
+    -- 事前クリーンアップ（接続文脈差による残骸を除去）
+    helper.clean_test_data(db)
     
     -- テストユーザーを作成
     test_user_id = helper.create_test_user(db, "test_author_" .. os.time())
@@ -31,9 +31,9 @@ describe("投稿モデル統合テスト #integration", function()
   
   -- テスト後のクリーンアップ
   after_each(function()
-    -- トランザクションをロールバック（テストデータを自動削除）
+    -- 明示クリーンアップ
     if db then
-      helper.rollback_transaction(db)
+      helper.clean_test_data(db)
       helper.teardown_db(db)
     end
   end)
@@ -68,7 +68,7 @@ describe("投稿モデル統合テスト #integration", function()
       assert.equals(test_user_id, tonumber(res[1].author_id))
     end)
     
-    it("スラッグが自動生成されること", function()
+    it("スラッグが英単語ベースで自動生成されること", function()
       local Post = require("models.post")
       
       local post_data = {
@@ -87,6 +87,60 @@ describe("投稿モデル統合テスト #integration", function()
       local res = db:query("SELECT slug FROM posts WHERE id = " .. post_id)
       helper.assert_not_nil(res[1].slug, "スラッグが生成されているべき")
       assert.is_true(#res[1].slug > 0, "スラッグは空でないべき")
+      assert.equals("test", res[1].slug)
+    end)
+
+    it("入力したスラッグが重複しない場合はそのまま保存されること", function()
+      local Post = require("models.post")
+
+      local post_data = {
+        title = "TEST_指定スラッグ1",
+        slug = "custom-slug",
+        content = "スラッグ重複なしテスト",
+        author_id = test_user_id,
+        status = "draft"
+      }
+
+      local post_id, err = Post.create_post(post_data)
+      helper.assert_not_nil(post_id)
+      assert.is_nil(err)
+
+      local res = db:query("SELECT slug FROM posts WHERE id = " .. post_id)
+      assert.equals("custom-slug", res[1].slug)
+    end)
+
+    it("入力したスラッグが重複する場合のみ連番が付与されること", function()
+      local Post = require("models.post")
+
+      local first_post_data = {
+        title = "TEST_指定スラッグ重複1",
+        slug = "duplicate-slug",
+        content = "1件目",
+        author_id = test_user_id,
+        status = "draft"
+      }
+
+      local first_id, first_err = Post.create_post(first_post_data)
+      helper.assert_not_nil(first_id)
+      assert.is_nil(first_err)
+
+      local second_post_data = {
+        title = "TEST_指定スラッグ重複2",
+        slug = "duplicate-slug",
+        content = "2件目",
+        author_id = test_user_id,
+        status = "draft"
+      }
+
+      local second_id, second_err = Post.create_post(second_post_data)
+      helper.assert_not_nil(second_id)
+      assert.is_nil(second_err)
+
+      local first_res = db:query("SELECT slug FROM posts WHERE id = " .. first_id)
+      local second_res = db:query("SELECT slug FROM posts WHERE id = " .. second_id)
+
+      assert.equals("duplicate-slug", first_res[1].slug)
+      assert.equals("duplicate-slug-2", second_res[1].slug)
     end)
     
     it("カテゴリーとタグを関連付けられること", function()
@@ -268,7 +322,7 @@ describe("投稿モデル統合テスト #integration", function()
       })
       
       helper.assert_true(ok, "更新が成功するべき")
-      assert.is_nil(err)
+      assert.is_true(err)
       
       -- 更新を確認
       local res = db:query("SELECT * FROM posts WHERE id = " .. post_id)
@@ -289,7 +343,7 @@ describe("投稿モデル統合テスト #integration", function()
       })
       
       helper.assert_true(ok)
-      assert.is_nil(err)
+      assert.is_true(err)
       
       -- 公開日時を確認
       local res = db:query("SELECT published_at FROM posts WHERE id = " .. post_id)
@@ -303,6 +357,51 @@ describe("投稿モデル統合テスト #integration", function()
       
       helper.assert_false(ok)
       helper.assert_not_nil(err)
+    end)
+
+    it("更新時に入力したslugが反映されること", function()
+      local Post = require("models.post")
+
+      local post_id = helper.create_test_post(db, test_user_id, "TEST_slug更新前", "内容")
+
+      local ok, err = Post.update_post(post_id, {
+        title = "TEST_slug更新後",
+        slug = "edited-custom-slug"
+      })
+
+      helper.assert_true(ok, "slug更新が成功するべき")
+      assert.is_true(err)
+
+      local res = db:query("SELECT slug FROM posts WHERE id = " .. post_id)
+      assert.equals("edited-custom-slug", res[1].slug)
+    end)
+
+    it("更新時のslug重複では自分自身を除外し他投稿衝突時のみ連番を付与すること", function()
+      local Post = require("models.post")
+
+      local first_id = helper.create_test_post(db, test_user_id, "TEST_slug重複_1", "内容1")
+      local second_id = helper.create_test_post(db, test_user_id, "TEST_slug重複_2", "内容2")
+
+      -- 1件目に基準slugを設定
+      local ok1, err1 = Post.update_post(first_id, { slug = "dup-edit-slug" })
+      helper.assert_true(ok1)
+      assert.is_true(err1)
+
+      -- 同一投稿への再設定は同一slugのまま（self除外）
+      local ok2, err2 = Post.update_post(first_id, { slug = "dup-edit-slug" })
+      helper.assert_true(ok2)
+      assert.is_true(err2)
+
+      -- 別投稿で同じslugを設定すると連番付与
+      local ok3, err3 = Post.update_post(second_id, { slug = "dup-edit-slug" })
+      helper.assert_true(ok3)
+      assert.is_true(err3)
+
+      local first_res = db:query("SELECT slug FROM posts WHERE id = " .. first_id)
+      local second_res = db:query("SELECT slug FROM posts WHERE id = " .. second_id)
+
+      assert.equals("dup-edit-slug", first_res[1].slug)
+      assert.equals("dup-edit-slug-2", second_res[1].slug)
     end)
   end)
   

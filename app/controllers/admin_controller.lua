@@ -586,6 +586,7 @@ function AdminController.posts_create(self)
     -- Lapisでは name="field[]" のパラメータは self.params["field[]"] でアクセス
     local post_data = {
         title = self.params.title,
+        slug = self.params.slug,
         content = self.params.content,
         excerpt = self.params.excerpt or "",
         author_id = user.id,
@@ -642,15 +643,23 @@ function AdminController.posts_update(self)
     end
     
     -- フォームデータから更新データを作成
+    -- NOTE: get_array_param() は ngx.req.* を直接触るため、先に必要なself.paramsを退避する
+    local input_title = self.params.title
+    local input_slug = self.params.slug
+    local input_content = self.params.content
+    local input_excerpt = self.params.excerpt
+    local input_status = self.params.status
+
     local update_data = {
-        title = self.params.title,
-        content = self.params.content,
-        excerpt = self.params.excerpt,
-        status = self.params.status,
+        title = input_title,
+        slug = input_slug,
+        content = input_content,
+        excerpt = input_excerpt,
+        status = input_status,
         categories = get_array_param(self.req, "category_ids[]"),
         tags = get_array_param(self.req, "tag_ids[]")
     }
-    
+
     local ok, err = Post.update_post(post_id, update_data)
     if not ok then
         -- CSRFトークンを生成

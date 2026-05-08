@@ -70,12 +70,31 @@ function _M.close(db)
     if not db then
         return
     end
-    
-    -- 接続プールに返却
-    local ok, err = db:keepalive(_M.config.pool_timeout, _M.config.pool_size)
-    if not ok then
+
+    -- 実行環境に応じて接続をクローズ
+    -- OpenResty(cosocket) では keepalive、LuaSocket環境（統合テスト等）では disconnect を使用
+    local ok, err
+    if type(db.keepalive) == "function" then
+        local called_ok, keepalive_ok, keepalive_err = pcall(
+            db.keepalive,
+            db,
+            _M.config.pool_timeout,
+            _M.config.pool_size
+        )
+
+        if called_ok then
+            ok, err = keepalive_ok, keepalive_err
+        else
+            ok, err = false, keepalive_ok
+        end
+
+        if ok then
+            return
+        end
         ngx.log(ngx.WARN, "接続プールへの返却に失敗: ", err)
-        -- エラー時は接続を閉じる
+    end
+
+    if type(db.disconnect) == "function" then
         db:disconnect()
     end
 end

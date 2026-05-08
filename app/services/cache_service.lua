@@ -9,6 +9,9 @@ local CACHE_VERSION_KEY = "cache_version"
 
 -- 共有辞書を取得
 local function get_shared_dict()
+    if not ngx or not ngx.shared then
+        return nil
+    end
     return ngx.shared.cache
 end
 
