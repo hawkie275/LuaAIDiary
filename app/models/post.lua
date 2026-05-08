@@ -26,14 +26,21 @@ function _M.create_post(data)
     -- スラッグを生成
     local slug = data.slug
     if not slug or slug == "" then
-        slug = slug_util.slugify(data.title)
+        -- 未入力時: タイトルの英単語抽出ベース（重複時のみ連番）
+        slug = slug_util.extract_english_word_slug(data.title)
+        if slug == "" then
+            slug = "post"
+        end
+    else
+        -- 入力あり: 入力値を尊重し、重複時のみ連番を付与
+        slug = slug_util.slugify(slug, { transliterate = false })
     end
+
+    -- 作成時は重複時のみ連番を付与
+    slug = slug_util.generate_unique_slug(slug, _M, nil)
     
     -- 予約語を回避
     slug = slug_util.avoid_reserved(slug)
-    
-    -- ユニークなスラッグを生成
-    slug = slug_util.generate_unique_slug(slug, _M, nil)
     
     -- 生成されたスラッグの妥当性を検証
     if not slug or slug == "" then
@@ -111,6 +118,7 @@ function _M.update_post(id, data)
     
     -- スラッグを更新する場合
     if data.slug ~= nil then
+
         -- 空スラッグの場合はタイトルから生成
         if data.slug == "" then
             data.slug = slug_util.slugify(data.title or post.title)

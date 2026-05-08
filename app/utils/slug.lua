@@ -3,6 +3,17 @@
 
 local _M = {}
 
+local function safe_ngx_log(level, ...)
+    if ngx and ngx.log then
+        ngx.log(level, ...)
+    end
+end
+
+local function build_fallback_hash_source(...)
+    local parts = {...}
+    return table.concat(parts, ":")
+end
+
 -- ========================================
 -- 日本語からローマ字への変換テーブル
 -- ========================================
@@ -91,6 +102,89 @@ function _M.slugify(str, options)
     return str
 end
 
+-- 半角英字連続語を抽出してハイフン連結したスラッグベースを生成
+-- @param title タイトル文字列
+-- @return スラッグベース（小文字、ハイフン連結）
+function _M.extract_english_word_slug(title)
+    if not title or title == "" then
+        return ""
+    end
+
+    local words = {}
+    for word in tostring(title):gmatch("[A-Za-z]+") do
+        words[#words + 1] = word:lower()
+    end
+
+    if #words == 0 then
+        return ""
+    end
+
+    return table.concat(words, "-")
+end
+
+-- 10文字ハッシュサフィックスを生成
+-- 既存crypto utilを優先利用し、失敗時はsha256をフォールバック
+-- @param seed 任意のシード文字列
+-- @return 10文字の16進文字列
+function _M.generate_hash_suffix_10(seed)
+    local ok, crypto = pcall(require, "utils.crypto")
+    if ok and crypto and crypto.generate_token then
+        local token = crypto.generate_token(5) -- 5 bytes => 10 hex chars
+        if token and #token >= 10 then
+            return token:sub(1, 10)
+        end
+    end
+
+    local hash_seed = build_fallback_hash_source(
+        tostring(seed or ""),
+        tostring(os.time()),
+        tostring(math.random())
+    )
+    if ok and crypto and crypto.sha256 then
+        local digest = crypto.sha256(hash_seed)
+        if digest and #digest >= 10 then
+            return digest:sub(1, 10)
+        end
+    end
+
+    return tostring(os.time()):sub(-10)
+end
+
+-- タイトルから「英単語ベース + 10文字ハッシュ」の作成時スラッグを生成
+-- @param title タイトル
+-- @return スラッグ
+function _M.generate_post_slug_from_title(title)
+    local base = _M.extract_english_word_slug(title)
+    if base == "" then
+        base = "post"
+    end
+
+    local suffix = _M.generate_hash_suffix_10(title)
+    return string.format("%s-%s", base, suffix)
+end
+
+-- 既存投稿との重複時のみ10文字ハッシュサフィックスを付与
+-- @param slug 候補スラッグ
+-- @param model モデルオブジェクト（find_byを持つ）
+-- @param id 除外するID（更新時）
+-- @return 衝突解決後スラッグ
+function _M.append_hash_if_duplicate(slug, model, id)
+    if not slug or slug == "" or not model or not model.find_by then
+        return slug
+    end
+
+    local existing, err = model:find_by({ slug = slug })
+    if err or not existing or #existing == 0 then
+        return slug
+    end
+
+    if id and #existing == 1 and existing[1].id == id then
+        return slug
+    end
+
+    return string.format("%s-%s", slug, _M.generate_hash_suffix_10(slug))
+end
+
 -- 日本語文字列をローマ字に変換
 -- @param str 日本語文字列
 -- @return ローマ字文字列
@@ -168,7 +262,7 @@ function _M.generate_unique_slug(str, model, id)
         local existing, err = model:find_by(conditions)
         
         if err then
-            ngx.log(ngx.ERR, "スラッグ検索エラー: ", err)
+            safe_ngx_log(ngx and ngx.ERR or nil, "スラッグ検索エラー: ", err)
             return base_slug
         end
         
@@ -188,7 +282,7 @@ function _M.generate_unique_slug(str, model, id)
         
         -- 無限ループ防止
         if counter > 1000 then
-            ngx.log(ngx.WARN, "スラッグ生成の試行回数が上限に達しました")
+            safe_ngx_log(ngx and ngx.WARN or nil, "スラッグ生成の試行回数が上限に達しました")
             -- ランダムな数値を追加
             local random = require("resty.random")
             local bytes = random.bytes(4)

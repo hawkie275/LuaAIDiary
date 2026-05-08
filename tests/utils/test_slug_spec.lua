@@ -115,3 +115,39 @@ describe("slug collision avoidance for Japanese titles", function()
         assert.is_true(#slug > 5)
     end)
 end)
+
+describe("post slug generation rules", function()
+    it("未入力時は英単語ベースのスラッグになること", function()
+        local slug = slug_util.extract_english_word_slug("My First Post")
+        assert.is_not_nil(slug)
+        assert.equals("my-first-post", slug)
+    end)
+
+    it("英単語抽出結果が空の場合は空文字を返すこと", function()
+        local slug = slug_util.extract_english_word_slug("### こんにちは ###")
+        assert.equals("", slug)
+    end)
+
+    it("入力slugが重複しない場合はそのまま維持されること", function()
+        local model = {
+            find_by = function()
+                return {}, nil
+            end
+        }
+        local actual = slug_util.append_hash_if_duplicate("custom-slug", model, nil)
+        assert.equals("custom-slug", actual)
+    end)
+
+    it("入力slugが重複する場合のみ連番を付与すること", function()
+        local model = {
+            find_by = function(_, conditions)
+                if conditions and conditions.slug == "custom-slug" then
+                    return { { id = 1, slug = "custom-slug" } }, nil
+                end
+                return {}, nil
+            end
+        }
+        local actual = slug_util.generate_unique_slug("custom-slug", model, nil)
+        assert.equals("custom-slug-2", actual)
+    end)
+end)
