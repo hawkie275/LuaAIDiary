@@ -24,16 +24,33 @@ function _M.create_post(data)
     end
     
     -- スラッグを生成
-    local slug = data.slug
+    local raw_slug = data.slug
+    local slug = raw_slug and tostring(raw_slug) or nil
+
+    -- 先頭末尾空白のみの入力は未入力として扱う
+    if slug then
+        slug = slug:gsub("^%s+", ""):gsub("%s+$", "")
+    end
+
     if not slug or slug == "" then
         -- 未入力時: タイトルの英単語抽出ベース（重複時のみ連番）
         slug = slug_util.extract_english_word_slug(data.title)
         if slug == "" then
-            slug = "post"
+            slug = slug_util.generate_hash_slug_20(data.title)
         end
     else
         -- 入力あり: 入力値を尊重し、重複時のみ連番を付与
         slug = slug_util.slugify(slug, { transliterate = false })
+
+        -- 入力はあったが正規化後に空になった場合は未入力扱いにフォールバック
+        if not slug or slug == "" or slug:match("^post%-%d+$") then
+            local extracted = slug_util.extract_english_word_slug(data.title)
+            if extracted ~= "" then
+                slug = extracted
+            else
+                slug = slug_util.generate_hash_slug_20(data.title)
+            end
+        end
     end
 
     -- 作成時は重複時のみ連番を付与

@@ -68,7 +68,7 @@ describe("投稿モデル統合テスト #integration", function()
       assert.equals(test_user_id, tonumber(res[1].author_id))
     end)
     
-    it("スラッグが英単語ベースで自動生成されること", function()
+    it("未入力時に英単語があるタイトルは英単語ベースで自動生成されること", function()
       local Post = require("models.post")
       
       local post_data = {
@@ -88,6 +88,65 @@ describe("投稿モデル統合テスト #integration", function()
       helper.assert_not_nil(res[1].slug, "スラッグが生成されているべき")
       assert.is_true(#res[1].slug > 0, "スラッグは空でないべき")
       assert.equals("test", res[1].slug)
+    end)
+
+    it("未入力時に英単語抽出できないタイトルは20文字ハッシュになること", function()
+      local Post = require("models.post")
+
+      local post_data = {
+        title = "こんにちは世界",
+        content = "ハッシュスラッグテスト",
+        author_id = test_user_id,
+        status = "draft"
+      }
+
+      local post_id, err = Post.create_post(post_data)
+
+      helper.assert_not_nil(post_id)
+      assert.is_nil(err)
+
+      local res = db:query("SELECT slug FROM posts WHERE id = " .. post_id)
+      local actual_slug = res[1].slug
+      helper.assert_not_nil(actual_slug, "スラッグが生成されているべき")
+      assert.equals(20, #actual_slug)
+      assert.is_true(actual_slug:match("^[a-f0-9]+$") ~= nil)
+    end)
+
+    it("未入力時ハッシュスラッグが重複した場合は連番が付与されること", function()
+      local Post = require("models.post")
+      local slug_util = require("utils.slug")
+
+      local original_generate_hash_slug_20 = slug_util.generate_hash_slug_20
+      slug_util.generate_hash_slug_20 = function()
+        return "aaaaaaaaaaaaaaaaaaaa"
+      end
+
+      local first_id, first_err = Post.create_post({
+        title = "こんにちは一",
+        content = "1件目",
+        author_id = test_user_id,
+        status = "draft"
+      })
+
+      local second_id, second_err = Post.create_post({
+        title = "こんにちは二",
+        content = "2件目",
+        author_id = test_user_id,
+        status = "draft"
+      })
+
+      slug_util.generate_hash_slug_20 = original_generate_hash_slug_20
+
+      helper.assert_not_nil(first_id)
+      helper.assert_not_nil(second_id)
+      assert.is_nil(first_err)
+      assert.is_nil(second_err)
+
+      local first_res = db:query("SELECT slug FROM posts WHERE id = " .. first_id)
+      local second_res = db:query("SELECT slug FROM posts WHERE id = " .. second_id)
+
+      assert.equals("aaaaaaaaaaaaaaaaaaaa", first_res[1].slug)
+      assert.equals("aaaaaaaaaaaaaaaaaaaa-2", second_res[1].slug)
     end)
 
     it("入力したスラッグが重複しない場合はそのまま保存されること", function()

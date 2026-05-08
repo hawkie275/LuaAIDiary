@@ -150,6 +150,40 @@ function _M.generate_hash_suffix_10(seed)
     return tostring(os.time()):sub(-10)
 end
 
+-- 20文字ハッシュスラッグを生成
+-- 既存crypto utilを優先利用し、失敗時はsha256や疑似乱数16進でフォールバック
+-- @param seed 任意のシード文字列
+-- @return 20文字の16進文字列
+function _M.generate_hash_slug_20(seed)
+    local ok, crypto = pcall(require, "utils.crypto")
+    if ok and crypto and crypto.generate_token then
+        local token = crypto.generate_token(10) -- 10 bytes => 20 hex chars
+        if token and #token >= 20 then
+            return token:sub(1, 20):lower()
+        end
+    end
+
+    local hash_seed = build_fallback_hash_source(
+        tostring(seed or ""),
+        tostring(os.time()),
+        tostring(os.clock()),
+        tostring(math.random())
+    )
+    if ok and crypto and crypto.sha256 then
+        local digest = crypto.sha256(hash_seed)
+        if digest and #digest >= 20 then
+            return digest:sub(1, 20):lower()
+        end
+    end
+
+    -- 最終フォールバック: 20桁の16進疑似乱数
+    local parts = {}
+    for i = 1, 5 do
+        parts[#parts + 1] = string.format("%04x", math.random(0, 0xffff))
+    end
+    return table.concat(parts)
+end
+
 -- タイトルから「英単語ベース + 10文字ハッシュ」の作成時スラッグを生成
 -- @param title タイトル
 -- @return スラッグ
