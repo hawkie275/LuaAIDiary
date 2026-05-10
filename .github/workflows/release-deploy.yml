@@ -4,11 +4,12 @@ on:
   pull_request:
     types: [closed]
     branches:
-      - master
+      - main
 
 permissions:
   contents: write
   packages: write
+  pull-requests: write
 
 jobs:
   build_and_push:
@@ -109,6 +110,25 @@ jobs:
           tags: |
             ghcr.io/hawkie275/luaaidiary:${{ steps.version.outputs.version }}
             ghcr.io/hawkie275/luaaidiary:latest
+
+      - name: Comment deployed version to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = '${{ steps.version.outputs.version }}';
+            const prNumber = context.payload.pull_request.number;
+            const body = [
+              '## Release Version',
+              `- Selected by labels: ${version}`,
+              `- Image: ghcr.io/hawkie275/luaaidiary:${version}`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body
+            });
 
   deploy_web:
     if: github.event.pull_request.merged == true
