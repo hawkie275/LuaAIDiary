@@ -1,0 +1,135 @@
+name: Release and Deploy Web
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build_and_push:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate next version from PR labels
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --tags --force
+
+          labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+          echo "PR labels: ${labels:-<none>}"
+
+          bump="patch"
+
+          if echo " $labels " | grep -qi " bump_major "; then
+            bump="major"
+          elif echo " $labels " | grep -qi " bump_minor "; then
+            bump="minor"
+          elif echo " $labels " | grep -qi " bump_patch "; then
+            bump="patch"
+          else
+            echo "No bump_ labels found. Fallback to patch bump."
+          fi
+          echo "Selected bump type: $bump"
+
+          latest_tag="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
+
+          if [ -z "$latest_tag" ]; then
+            next_tag="v0.1.0"
+            echo "No existing semver tag. Using initial version: $next_tag"
+          else
+            core="${latest_tag#v}"
+            IFS='.' read -r major minor patch <<< "$core"
+
+            case "$bump" in
+              major)
+                major=$((major + 1))
+                minor=0
+                patch=0
+                ;;
+              minor)
+                minor=$((minor + 1))
+                patch=0
+                ;;
+              patch)
+                patch=$((patch + 1))
+                ;;
+            esac
+
+            next_tag="v${major}.${minor}.${patch}"
+            echo "Latest tag: $latest_tag"
+            echo "Calculated next tag: $next_tag"
+          fi
+
+          echo "version=$next_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push git tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.version }}"
+
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag already exists: $tag"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag "$tag"
+            git push origin "$tag"
+            echo "Created and pushed tag: $tag"
+          fi
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/hawkie275/luaaidiary:${{ steps.version.outputs.version }}
+            ghcr.io/hawkie275/luaaidiary:latest
+
+  deploy_web:
+    if: github.event.pull_request.merged == true
+    needs: build_and_push
+    runs-on: self-hosted
+    env:
+      APP_VERSION: ${{ needs.build_and_push.outputs.version }}
+      DEPLOY_PATH_INPUT: ${{ vars.DEPLOY_PATH }}
+      LOCAL_DNS_INPUT: ${{ vars.LOCAL_DNS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run self-hosted deploy script
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${DEPLOY_PATH_INPUT}" ]; then
+            export DEPLOY_PATH="${DEPLOY_PATH_INPUT}"
+          fi
+          if [ -n "${LOCAL_DNS_INPUT}" ]; then
+            export LOCAL_DNS="${LOCAL_DNS_INPUT}"
+          fi
+          ./deploy.sh "$APP_VERSION"
