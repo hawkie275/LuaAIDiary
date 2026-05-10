@@ -25,5 +25,8 @@ Thumbs.db
 *.swo
 *~
 
+# Local compose override
+docker-compose.override.yml
+
 # Performance benchmark raw data
 tests/performance/results/*/*.txt
