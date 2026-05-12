@@ -111,13 +111,16 @@ Makefileを使った自動セットアップ：
 git clone https://github.com/hawkie275/LuaAIDiary.git
 cd LuaAIDiary
 
-# 初期セットアップ（.env作成、ビルド、起動）
+# 初期セットアップ（.env作成、GHCRイメージ取得、起動）
 make setup
+
+# 初期セットアップ（ローカルビルド版・従来挙動）
+make setup-build
 ```
 
 これで以下が自動的に実行されます：
 1. `.env`ファイルの作成
-2. Dockerイメージのビルド
+2. GHCR上の最新Webイメージ取得
 3. サービスの起動
 4. データベースの初期化
 

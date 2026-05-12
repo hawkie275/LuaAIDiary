@@ -2,6 +2,8 @@ version: '3.8'
 
 services:
   web:
+    image: ghcr.io/hawkie275/luaaidiary:latest
+    pull_policy: always
     build:
       context: ./docker/web
       dockerfile: Dockerfile

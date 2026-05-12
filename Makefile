@@ -1,4 +1,4 @@
-.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup health status
+.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup setup-build health status
 
 # Docker Composeコマンド
 DOCKER_COMPOSE := docker compose
@@ -29,7 +29,8 @@ help:
 	@echo "  make lint       - Luacheckで静的解析を実行"
 	@echo "  make db-reset   - データベースをリセット"
 	@echo "  make clean      - すべてのコンテナとボリュームを削除"
-	@echo "  make setup      - 初期セットアップを実行"
+	@echo "  make setup      - 初期セットアップを実行（GHCRのlatestイメージをpullして起動）"
+	@echo "  make setup-build - 初期セットアップを実行（ローカルでbuildして起動）"
 	@echo "  make health     - ヘルスチェックを実行"
 	@echo "  make status     - サービス状態を確認"
 
@@ -178,11 +179,28 @@ setup-env:
 # 初期セットアップ
 setup: setup-env
 	@echo "🎉 初期セットアップを開始..."
-	@make build
+	@echo "📦 GHCRから最新のWebイメージを取得中..."
+	$(DOCKER_COMPOSE) pull web
+	@echo "ℹ️  ローカルビルドを行う場合は 'make setup-build' を使用してください"
 	@make up
 	@echo "⏳ データベースの起動を待機中..."
 	@sleep 10
 	@echo "✅ セットアップが完了しました！"
+	@echo ""
+	@echo "次のコマンドでアプリケーションにアクセスできます:"
+	@echo "  http://localhost:8080"
+	@echo ""
+	@echo "ログを確認: make logs"
+	@echo "テスト実行: make test"
+
+# 初期セットアップ（ローカルビルド版）
+setup-build: setup-env
+	@echo "🎉 初期セットアップ（ローカルビルド）を開始..."
+	@make build
+	@make up
+	@echo "⏳ データベースの起動を待機中..."
+	@sleep 10
+	@echo "✅ セットアップ（ローカルビルド）が完了しました！"
 	@echo ""
 	@echo "次のコマンドでアプリケーションにアクセスできます:"
 	@echo "  http://localhost:8080"
