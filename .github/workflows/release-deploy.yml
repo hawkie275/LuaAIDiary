@@ -13,7 +13,9 @@ permissions:
 
 jobs:
   build_and_push:
-    if: github.event.pull_request.merged == true
+    if: >-
+      github.event.pull_request.merged == true &&
+      !contains(join(github.event.pull_request.labels.*.name, ','), 'no_build')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -131,7 +133,9 @@ jobs:
             });
 
   deploy_web:
-    if: github.event.pull_request.merged == true
+    if: >-
+      github.event.pull_request.merged == true &&
+      !contains(join(github.event.pull_request.labels.*.name, ','), 'no_build')
     needs: build_and_push
     runs-on: self-hosted
     env:
