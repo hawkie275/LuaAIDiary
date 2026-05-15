@@ -4,7 +4,7 @@ A Lua-based WordPress-like blog system
 
 ## Overview
 
-LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJIT), Lapis, PostgreSQL, and Redis. It provides an easy setup using Docker Compose and a development environment that allows testing during development.
+LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJIT), Lapis, PostgreSQL, and Valkey. It provides an easy setup using Docker Compose and a development environment that allows testing during development.
 
 ## Key Features
 
@@ -17,7 +17,7 @@ LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJI
 - **Full-Text Search**: High-speed search with PostgreSQL GIN indexes
 - **Test Environment**: Automated testing support with Busted
 - **Developer Tools**: Enhanced development efficiency with Makefile and Luacheck
-- **Scalable**: Horizontal scaling with Redis and PostgreSQL
+- **Scalable**: Horizontal scaling with Valkey and PostgreSQL
 - **Hot Reload**: Automatic reflection of code changes
 - **Secure**: bcrypt, CSRF protection, encrypted API key management
 
@@ -42,8 +42,8 @@ LuaAIDiary is designed as a high-performance CMS. The following results are from
 ## Tech Stack
 
 - **Web Framework**: Lapis (OpenResty/Nginx + LuaJIT)
-- **Database**: PostgreSQL 15 (full-text search, JSONB support)
-- **Session Store**: Redis 7
+- **Database**: PostgreSQL 18 (full-text search, JSONB support)
+- **Session Store**: Valkey 8
 - **AI Integration**: Google Gemini API
 - **Test Framework**: Busted
 - **Static Analysis**: Luacheck
@@ -125,7 +125,7 @@ make setup-build
 
 This automatically executes:
 1. `.env` file creation
-2. Pull latest web image from GHCR
+2. Pull latest web image from registry (when using `make setup`)
 3. Service startup
 4. Database initialization
 
@@ -673,7 +673,7 @@ make logs-web
 - **Minimum length**: 8 characters
 
 #### Session Management
-- **Storage**: Redis (in-memory)
+- **Storage**: Valkey (in-memory)
 - **Expiration**: 7 days
 - **Cookie settings**:
   - `HttpOnly`: Not accessible from JavaScript
@@ -712,8 +712,8 @@ POSTGRES_PASSWORD=change_this_secure_password
 POSTGRES_DB=luaaidiary
 POSTGRES_USER=luaaidiary
 
-# Redis settings
-REDIS_HOST=redis
+# Valkey settings
+REDIS_HOST=valkey
 REDIS_PORT=6379
 
 # Lapis settings
@@ -809,7 +809,7 @@ make build
 ### Phase 1: Core System ✅ Completed
 - ✅ User authentication & authorization system (bcrypt)
 - ✅ Post CRUD functionality
-- ✅ Session management (Redis)
+- ✅ Session management (Valkey)
 - ✅ CSRF protection
 
 ### Phase 2: Theme Compatibility Layer (Lower Priority)
@@ -890,8 +890,8 @@ The MIT License allows you to freely use, copy, modify, merge, publish, distribu
 - [OpenResty Official Documentation](https://openresty.org/)
 - [Lapis Official Documentation](https://leafo.net/lapis/)
 - [Lua Official Site](https://www.lua.org/)
-- [PostgreSQL Official Documentation](https://www.postgresql.org/docs/15/)
-- [Redis Official Documentation](https://redis.io/documentation)
+- [PostgreSQL Official Documentation](https://www.postgresql.org/docs/current/)
+- [Valkey Official Documentation](https://valkey.io/)
 - [Busted Official Documentation](https://lunarmodules.github.io/busted/)
 - [Docker Official Documentation](https://docs.docker.com/)
 

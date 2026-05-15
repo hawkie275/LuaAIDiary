@@ -4,7 +4,7 @@ LuaベースのWordPressライクなブログシステム
 
 ## 概要
 
-LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、PostgreSQL、Redisを使用した高性能なブログシステムです。Docker Composeを使用して簡単にセットアップでき、テスト実行しながら開発できる環境を提供します。
+LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、PostgreSQL、Valkeyを使用した高性能なブログシステムです。Docker Composeを使用して簡単にセットアップでき、テスト実行しながら開発できる環境を提供します。
 
 ## 主な特徴
 
@@ -17,7 +17,7 @@ LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、PostgreSQL、Redisを使
 - **全文検索**: PostgreSQL GINインデックスによる高速検索
 - **テスト環境**: Busted による自動テスト対応
 - **開発ツール**: Makefile、Luacheck による開発効率化
-- **スケーラブル**: Redis、PostgreSQL による水平スケーリング対応
+- **スケーラブル**: Valkey、PostgreSQL による水平スケーリング対応
 - **ホットリロード**: コード変更時の自動反映
 - **セキュア**: bcrypt、CSRF保護、暗号化APIキー管理
 
@@ -42,8 +42,8 @@ LuaAIDiary は高性能CMSとして設計されています。以下は**ロー�
 ## 技術スタック
 
 - **Webフレームワーク**: Lapis (OpenResty/Nginx + LuaJIT)
-- **データベース**: PostgreSQL 15（全文検索、JSONB対応）
-- **セッションストア**: Redis 7
+- **データベース**: PostgreSQL 18（全文検索、JSONB対応）
+- **セッションストア**: Valkey 8
 - **AI統合**: Google Gemini API
 - **テストフレームワーク**: Busted
 - **静的解析**: Luacheck
@@ -120,7 +120,7 @@ make setup-build
 
 これで以下が自動的に実行されます：
 1. `.env`ファイルの作成
-2. GHCR上の最新Webイメージ取得
+2. レジストリから最新Webイメージ取得（`make setup`利用時）
 3. サービスの起動
 4. データベースの初期化
 
@@ -721,7 +721,7 @@ make build
 - **最小長**: 8文字
 
 #### セッション管理
-- **ストレージ**: Redis（インメモリ）
+- **ストレージ**: Valkey（インメモリ）
 - **有効期限**: 7日間
 - **Cookie設定**:
   - `HttpOnly`: JavaScriptからアクセス不可
@@ -760,8 +760,8 @@ POSTGRES_PASSWORD=change_this_secure_password
 POSTGRES_DB=luaaidiary
 POSTGRES_USER=luaaidiary
 
-# Redis設定
-REDIS_HOST=redis
+# Valkey設定
+REDIS_HOST=valkey
 REDIS_PORT=6379
 
 # Lapis設定
@@ -803,7 +803,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ### Phase 1: コアシステム ✅ 完了
 - ✅ ユーザー認証・認可システム（bcrypt）
 - ✅ 投稿CRUD機能
-- ✅ セッション管理（Redis）
+- ✅ セッション管理（Valkey）
 - ✅ CSRF対策
 
 ### Phase 2: テーマ互換レイヤー（優先度低・ペンディング）
@@ -884,8 +884,8 @@ MITライセンスにより、このソフトウェアを自由に使用、コ�
 - [OpenResty公式ドキュメント](https://openresty.org/)
 - [Lapis公式ドキュメント](https://leafo.net/lapis/)
 - [Lua公式サイト](https://www.lua.org/)
-- [PostgreSQL公式ドキュメント](https://www.postgresql.org/docs/15/)
-- [Redis公式ドキュメント](https://redis.io/documentation)
+- [PostgreSQL公式ドキュメント](https://www.postgresql.org/docs/current/)
+- [Valkey公式ドキュメント](https://valkey.io/)
 - [Busted公式ドキュメント](https://lunarmodules.github.io/busted/)
 - [Docker公式ドキュメント](https://docs.docker.com/)
 

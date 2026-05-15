@@ -2,8 +2,6 @@ version: '3.8'
 
 services:
   web:
-    image: ghcr.io/hawkie275/luaaidiary:latest
-    pull_policy: always
     build:
       context: ./docker/web
       dockerfile: Dockerfile
@@ -23,25 +21,25 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - REDIS_HOST=redis
+      - REDIS_HOST=valkey
       - REDIS_PORT=6379
       - LAPIS_ENVIRONMENT=development
     depends_on:
       - db
-      - redis
+      - valkey
     networks:
       - luaaidiary-network
     restart: unless-stopped
 
   db:
-    image: postgres:15
+    image: postgres:18
     container_name: luaaidiary-db
     environment:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql
       - ./postgresql/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
@@ -54,9 +52,9 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: luaaidiary-redis
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: luaaidiary-valkey
     ports:
       - "6379:6379"
     volumes:
@@ -65,7 +63,7 @@ services:
       - luaaidiary-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
