@@ -161,7 +161,7 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
             <div>
                 <strong style="color: var(--text-secondary); font-size: 13px;">バージョン:</strong>
-                <div style="margin-top: 5px;">LuaAIDiary 1.0.0</div>
+                <div style="margin-top: 5px;">LuaAIDiary: <%= system_info and system_info.app_version or "Unknown" %></div>
             </div>
             <div>
                 <strong style="color: var(--text-secondary); font-size: 13px;">Lua バージョン:</strong>
@@ -173,7 +173,11 @@
             </div>
             <div>
                 <strong style="color: var(--text-secondary); font-size: 13px;">データベース:</strong>
-                <div style="margin-top: 5px;">PostgreSQL</div>
+                <div style="margin-top: 5px;">PostgreSQL <%= system_info and system_info.postgres_version or "Unknown" %></div>
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary); font-size: 13px;">KVS:</strong>
+                <div style="margin-top: 5px;">Valkey <%= system_info and system_info.valkey_version or "Unknown" %></div>
             </div>
         </div>
     </div>

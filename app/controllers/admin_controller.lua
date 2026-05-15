@@ -11,8 +11,36 @@ local csrf = require("middleware.csrf")
 local db_config = require("config.database")
 local etlua = require("etlua")
 local cache_service = require("services.cache_service")
+local redis = require("resty.redis")
 
 local AdminController = {}
+
+-- LuaAIDiaryのバージョンを取得
+local function get_app_version()
+    -- 1) 明示的な環境変数
+    local env_version = os.getenv("APP_VERSION")
+    if env_version and #env_version > 0 and env_version ~= "Unknown" and env_version ~= "unknown" then
+        return env_version
+    end
+
+    -- 2) フォールバック
+    return "Unknown"
+end
+
+-- PostgreSQLバージョン文字列を X.X 形式に正規化
+local function normalize_postgres_version(raw)
+    if not raw or type(raw) ~= "string" then
+        return "Unknown"
+    end
+
+    -- 例: "18.4" / "PostgreSQL 18.4 (...)"
+    local short = raw:match("(%d+%.%d+)")
+    if short and #short > 0 then
+        return short
+    end
+
+    return raw
+end
 
 -- セッションから認証されたユーザーを取得
 local function get_authenticated_user()
@@ -149,16 +177,60 @@ local function get_system_info()
     local system_info = {
         lua_version = _VERSION or "Unknown",
         server_time = os.date("%Y-%m-%d %H:%M:%S"),
-        database_status = "disconnected"
+        database_status = "disconnected",
+        app_version = get_app_version(),
+        postgres_version = "Unknown",
+        valkey_version = "Unknown"
     }
     
     -- データベース接続状態を確認
     local db, err = db_config.connect()
     if db then
         system_info.database_status = "connected"
+        local version_res, version_err = db:query("SHOW server_version")
+        if version_res and version_res[1] and version_res[1].server_version then
+            -- 例: 18.4
+            system_info.postgres_version = normalize_postgres_version(version_res[1].server_version)
+        elseif version_res and version_res[1] and version_res[1].version then
+            -- 念のため: ドライバ実装差異で version カラムになる場合
+            system_info.postgres_version = normalize_postgres_version(version_res[1].version)
+        else
+            ngx.log(ngx.WARN, "PostgreSQLバージョン取得失敗: ", version_err or "unknown error")
+        end
         db_config.close(db)
     else
         ngx.log(ngx.WARN, "データベース接続確認失敗: ", err or "unknown error")
+    end
+
+    -- Valkeyバージョンを取得（実行時取得）
+    do
+        local red = redis:new()
+        red:set_timeout(1000)
+
+        local host = os.getenv("REDIS_HOST") or "valkey"
+        local port = tonumber(os.getenv("REDIS_PORT")) or 6379
+
+        local ok, redis_err = red:connect(host, port)
+        if ok then
+            local info, info_err = red:info("server")
+            if type(info) == "string" then
+                local v = info:match("valkey_version:([^\r\n]+)") or info:match("redis_version:([^\r\n]+)")
+                if v and #v > 0 then
+                    system_info.valkey_version = v
+                else
+                    ngx.log(ngx.WARN, "Valkeyバージョン文字列をINFO出力から抽出できませんでした")
+                end
+            else
+                ngx.log(ngx.WARN, "Valkey INFO取得失敗: ", info_err or "unknown error")
+            end
+
+            local keepalive_ok, keepalive_err = red:set_keepalive(10000, 100)
+            if not keepalive_ok then
+                ngx.log(ngx.WARN, "Valkey keepalive設定失敗: ", keepalive_err or "unknown error")
+            end
+        else
+            ngx.log(ngx.WARN, "Valkey接続失敗: ", redis_err or "unknown error")
+        end
     end
     
     return system_info
