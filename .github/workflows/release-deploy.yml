@@ -142,18 +142,127 @@ jobs:
       APP_VERSION: ${{ needs.build_and_push.outputs.version }}
       DEPLOY_PATH_INPUT: ${{ vars.DEPLOY_PATH }}
       LOCAL_DNS_INPUT: ${{ vars.LOCAL_DNS }}
+      IMAGE: ghcr.io/hawkie275/luaaidiary
+      SAFE_DEFAULT_LOCAL_DNS: 1.1.1.1,8.8.8.8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run self-hosted deploy script
+      - name: Deploy web on self-hosted runner
         shell: bash
         run: |
           set -euo pipefail
+
+          log() {
+            echo "[deploy] $*"
+          }
+
+          fail() {
+            echo "[deploy][error] $*" >&2
+            exit 1
+          }
+
+          require_cmd() {
+            local cmd="$1"
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              fail "required command not found: $cmd"
+            fi
+          }
+
+          if [ -z "${APP_VERSION:-}" ]; then
+            fail "APP_VERSION is empty"
+          fi
+
+          if ! [[ "$APP_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            fail "invalid APP_VERSION format: '$APP_VERSION' (expected: vX.Y.Z)"
+          fi
+
+          DEPLOY_PATH="${DEPLOY_PATH_INPUT:-$GITHUB_WORKSPACE}"
+          if [ ! -d "$DEPLOY_PATH" ]; then
+            fail "deploy path does not exist: $DEPLOY_PATH"
+          fi
+
+          OVERRIDE_FILE="${DEPLOY_PATH}/docker-compose.override.yml"
+          LOCAL_DNS_RAW="${LOCAL_DNS_INPUT:-$SAFE_DEFAULT_LOCAL_DNS}"
+
+          log "Checking required commands..."
+          require_cmd docker
+          require_cmd sed
+          if ! docker compose version >/dev/null 2>&1; then
+            fail "required command not available: docker compose"
+          fi
+
+          if [ -z "$LOCAL_DNS_RAW" ]; then
+            fail "LOCAL_DNS is empty"
+          fi
+
+          write_override_file() {
+            local app_version="$1"
+
+            {
+              echo "services:"
+              echo "  web:"
+              echo "    image: ${IMAGE}:${APP_VERSION}"
+              if [ -n "$app_version" ]; then
+                echo "    environment:"
+                echo "      - APP_VERSION=${app_version}"
+              fi
+              echo "    dns:"
+
+              IFS=',' read -r -a dns_items <<< "$LOCAL_DNS_RAW"
+              usable_count=0
+              for dns in "${dns_items[@]}"; do
+                dns_trimmed="$(echo "$dns" | xargs)"
+                if [ -n "$dns_trimmed" ]; then
+                  echo "      - ${dns_trimmed}"
+                  usable_count=$((usable_count + 1))
+                fi
+              done
+
+              if [ "$usable_count" -eq 0 ]; then
+                fail "LOCAL_DNS did not contain any usable DNS entries"
+              fi
+            } > "$OVERRIDE_FILE"
+          }
+
+          log "Writing override file (initial): ${OVERRIDE_FILE}"
+          write_override_file ""
+
+          log "Pulling and restarting web service..."
           if [ -n "${DEPLOY_PATH_INPUT}" ]; then
             export DEPLOY_PATH="${DEPLOY_PATH_INPUT}"
           fi
-          if [ -n "${LOCAL_DNS_INPUT}" ]; then
-            export LOCAL_DNS="${LOCAL_DNS_INPUT}"
+
+          cd "$DEPLOY_PATH"
+          if ! docker compose pull web; then
+            fail "docker compose pull web failed"
           fi
-          ./deploy.sh "$APP_VERSION"
+
+          IMAGE_REF="${IMAGE}:${APP_VERSION}"
+          APP_VERSION_VALUE="$(docker image inspect "$IMAGE_REF" --format '{{index .RepoTags 0}}' 2>/dev/null | sed -E 's|^.+:v?([0-9]+\.[0-9]+\.[0-9]+)$|\1|')"
+          if [ -z "$APP_VERSION_VALUE" ]; then
+            fail "failed to derive APP_VERSION from image inspect: ${IMAGE_REF}"
+          fi
+
+          log "Derived APP_VERSION from image inspect: ${APP_VERSION_VALUE}"
+          log "Rewriting override file with APP_VERSION"
+          write_override_file "$APP_VERSION_VALUE"
+
+          if ! grep -q "APP_VERSION=${APP_VERSION_VALUE}" "$OVERRIDE_FILE"; then
+            fail "override file verification failed: APP_VERSION not found in ${OVERRIDE_FILE}"
+          fi
+
+          if ! docker compose up -d web; then
+            fail "docker compose up -d web failed"
+          fi
+
+          CONTAINER_APP_VERSION="$(docker compose exec -T web sh -lc 'printf %s "$APP_VERSION"' 2>/dev/null || true)"
+          if [ -z "$CONTAINER_APP_VERSION" ]; then
+            fail "runtime verification failed: APP_VERSION is empty in web container"
+          fi
+
+          if [ "$CONTAINER_APP_VERSION" != "$APP_VERSION_VALUE" ]; then
+            fail "runtime verification failed: APP_VERSION mismatch (expected=${APP_VERSION_VALUE}, actual=${CONTAINER_APP_VERSION})"
+          fi
+
+          log "Deployment completed: ${IMAGE}:${APP_VERSION}"
