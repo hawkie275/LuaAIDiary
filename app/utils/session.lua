@@ -26,7 +26,11 @@ local function get_redis_connection()
   local red = redis:new()
   red:set_timeout(1000) -- 1秒
 
-  local ok, err = red:connect("redis", 6379)
+  -- 環境変数 REDIS_HOST を取得し、なければ "valkey" (または "redis") をデフォルトにする
+  local host = os.getenv("REDIS_HOST") or "valkey"
+  local port = tonumber(os.getenv("REDIS_PORT")) or 6379
+
+  local ok, err = red:connect(host, port)
   if not ok then
     ngx.log(ngx.ERR, "Failed to connect to Redis: ", err)
     return nil, err
