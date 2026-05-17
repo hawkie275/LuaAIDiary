@@ -136,11 +136,9 @@
             <div class="footer-content">
                 <p>&copy; <%= os.date("%Y") %> LuaAIDiary. All rights reserved.</p>
                 <p class="footer-links">
-                    <a href="https://github.com/yourusername/LuaAIDiary" target="_blank">GitHub</a>
+                    <a href="https://github.com/hawkie275/LuaAIDiary/" target="_blank">GitHub</a>
                     <span class="separator">|</span>
-                    <a href="/admin/about">About</a>
-                    <span class="separator">|</span>
-                    <span class="version">Version 1.0.0</span>
+                    <span class="version">Version <%= app_version or "Unknown" %></span>
                 </p>
             </div>
         </footer>
