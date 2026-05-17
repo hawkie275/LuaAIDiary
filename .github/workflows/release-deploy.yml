@@ -108,6 +108,8 @@ jobs:
         with:
           context: .
           file: ./docker/web/Dockerfile
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.app_version }}
           push: true
           tags: |
             ghcr.io/hawkie275/luaaidiary:${{ steps.version.outputs.version }}
