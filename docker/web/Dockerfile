@@ -1,5 +1,8 @@
 FROM openresty/openresty:alpine
 
+ARG APP_VERSION=Unknown
+ENV APP_VERSION=${APP_VERSION}
+
 # 必要なパッケージのインストール
 RUN apk add --no-cache \
     git \
@@ -31,6 +34,10 @@ RUN luarocks-5.1 install luabitop \
 
 # 作業ディレクトリの設定
 WORKDIR /app
+
+# アプリケーション本体をイメージに同梱
+COPY app/ /app/
+COPY wp-content/ /app/wp-content/
 
 # Nginxキャッシュディレクトリの作成
 RUN mkdir -p /var/cache/nginx/luaaidiary \
