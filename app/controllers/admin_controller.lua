@@ -345,7 +345,8 @@ local function render_admin_template(template_name, data)
         content_for_layout = content,
         page_title = data.page_title or template_name,
         active_menu = data.active_menu or "dashboard",
-        _VERSION = _VERSION
+        _VERSION = _VERSION,
+        app_version = get_app_version()
     }
     
     -- レイアウトをレンダリング
@@ -464,7 +465,8 @@ function AdminController.dashboard(self)
         content_for_layout = content,
         page_title = "ダッシュボード",
         active_menu = "dashboard",
-        _VERSION = _VERSION
+        _VERSION = _VERSION,
+        app_version = get_app_version()
     }
     
     -- レイアウトをレンダリング
