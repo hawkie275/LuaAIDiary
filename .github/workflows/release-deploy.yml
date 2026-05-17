@@ -79,6 +79,7 @@ jobs:
           fi
 
           echo "version=$next_tag" >> "$GITHUB_OUTPUT"
+          echo "app_version=${next_tag#v}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

@@ -1,4 +1,4 @@
-.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup setup-build health status
+.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup setup-build sync-app-version health status
 
 # Docker Composeコマンド
 DOCKER_COMPOSE := docker compose
@@ -31,6 +31,7 @@ help:
 	@echo "  make clean      - すべてのコンテナとボリュームを削除"
 	@echo "  make setup      - 初期セットアップを実行（GHCRのlatestイメージをpullして起動）"
 	@echo "  make setup-build - 初期セットアップを実行（ローカルでbuildして起動）"
+	@echo "  make sync-app-version - pull済みイメージからAPP_VERSIONを抽出して.envを更新"
 	@echo "  make health     - ヘルスチェックを実行"
 	@echo "  make status     - サービス状態を確認"
 
@@ -176,11 +177,30 @@ setup-env:
 		echo "ℹ️  .envファイルは既に存在します"; \
 	fi
 
+# pull済みイメージから APP_VERSION を抽出して .env に反映
+sync-app-version: setup-env
+	@echo "🔄 APP_VERSION をイメージタグから同期中..."
+	@IMAGE_TAG_VAL=$${IMAGE_TAG:-$$(grep '^IMAGE_TAG=' .env | cut -d '=' -f2)}; \
+	if [ -z "$$IMAGE_TAG_VAL" ]; then IMAGE_TAG_VAL=latest; fi; \
+	IMAGE_REF="ghcr.io/hawkie275/luaaidiary:$$IMAGE_TAG_VAL"; \
+	APP_VER=$$(docker image inspect $$IMAGE_REF --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^APP_VERSION=' | head -n1 | cut -d '=' -f2); \
+	if [ -z "$$APP_VER" ]; then \
+		echo "❌ APP_VERSION 抽出に失敗: $$IMAGE_REF (先に 'docker compose pull web' を実行し、APP_VERSION入りイメージを利用してください)"; \
+		exit 1; \
+	fi; \
+	if grep -q '^APP_VERSION=' .env; then \
+		sed -i "s/^APP_VERSION=.*/APP_VERSION=$$APP_VER/" .env; \
+	else \
+		echo "APP_VERSION=$$APP_VER" >> .env; \
+	fi; \
+	echo "✅ .env を更新しました: APP_VERSION=$$APP_VER"
+
 # 初期セットアップ
 setup: setup-env
 	@echo "🎉 初期セットアップを開始..."
 	@echo "📦 GHCRから最新のWebイメージを取得中..."
 	$(DOCKER_COMPOSE) pull web
+	@make sync-app-version
 	@echo "ℹ️  ローカルビルドを行う場合は 'make setup-build' を使用してください"
 	@make up
 	@echo "⏳ データベースの起動を待機中..."
