@@ -9,9 +9,6 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./wp-content:/app/wp-content:cached
-      - ./static:/usr/local/openresty/nginx/html/static:cached
-      - ./docker/web/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
       - logs:/var/log/nginx
     environment:
       - POSTGRES_HOST=db
