@@ -52,7 +52,7 @@ up:
 	@echo "✅ サービスが起動しました"
 	@echo "   Web: http://localhost:8080"
 	@echo "   PostgreSQL: localhost:5432"
-	@echo "   Redis: localhost:6379"
+	@echo "   Valkey: localhost:6379"
 
 # サービスを停止
 down:

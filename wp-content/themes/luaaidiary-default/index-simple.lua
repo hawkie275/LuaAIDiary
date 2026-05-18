@@ -8,6 +8,7 @@ function template.render(context)
     local current_year = os.date("%Y")
     local current_page = tonumber(query.query_vars and query.query_vars.paged) or 1
     local max_pages = tonumber(query.max_num_pages) or 1
+    local has_next_page = (current_page < max_pages) or (#posts >= 10)
     
     -- wp_functionsを読み込む
     local wp = require("theme_engine.wp_functions")
@@ -27,6 +28,10 @@ function template.render(context)
         .post-title { color: #333; }
         .post-meta { color: #666; font-size: 0.9em; }
         .post-excerpt { margin: 15px 0; }
+        .pagination { display: flex; justify-content: center; gap: 12px; margin: 24px 0; }
+        .pagination a { padding: 8px 12px; border: 1px solid #ddd; text-decoration: none; color: #333; border-radius: 4px; }
+        .pagination a:hover { background: #f5f5f5; }
+        footer { text-align: center; margin-top: 24px; }
     </style>
 </head>
 <body>
@@ -68,7 +73,7 @@ function template.render(context)
 ]], current_page - 1)
             end
 
-            if current_page < max_pages then
+            if has_next_page then
                 pagination_html = pagination_html .. string.format([[            <a href="/?paged=%d">次のページへ</a>
 ]], current_page + 1)
             end
