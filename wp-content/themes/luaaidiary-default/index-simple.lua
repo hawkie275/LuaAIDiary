@@ -5,6 +5,7 @@ function template.render(context)
     local output = {}
     local posts = context.posts or {}
     local query = context.query or {}
+    local current_year = os.date("%Y")
     
     -- wp_functionsを読み込む
     local wp = require("theme_engine.wp_functions")
@@ -63,7 +64,7 @@ function template.render(context)
     table.insert(output, [[
     </main>
     <footer>
-        <p>&copy; 2025 LuaAIDiary. All rights reserved.</p>
+        <p>&copy; ]] .. current_year .. [[ LuaAIDiary. All rights reserved.</p>
     </footer>
 </body>
 </html>
