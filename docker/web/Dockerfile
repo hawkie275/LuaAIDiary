@@ -38,6 +38,8 @@ WORKDIR /app
 # アプリケーション本体をイメージに同梱
 COPY app/ /app/
 COPY wp-content/ /app/wp-content/
+COPY static/ /usr/local/openresty/nginx/html/static/
+COPY docker/web/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 
 # Nginxキャッシュディレクトリの作成
 RUN mkdir -p /var/cache/nginx/luaaidiary \
