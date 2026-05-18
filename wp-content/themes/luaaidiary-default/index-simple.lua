@@ -5,6 +5,9 @@ function template.render(context)
     local output = {}
     local posts = context.posts or {}
     local query = context.query or {}
+    local current_year = os.date("%Y")
+    local current_page = tonumber(query.query_vars and query.query_vars.paged) or 1
+    local max_pages = tonumber(query.max_num_pages) or 1
     
     -- wp_functionsを読み込む
     local wp = require("theme_engine.wp_functions")
@@ -54,6 +57,26 @@ function template.render(context)
                 post.excerpt or (post.content and post.content:sub(1, 200) .. "...") or ""
             ))
         end
+
+        if max_pages > 1 then
+            local pagination_html = [[
+        <nav class="pagination" aria-label="ページネーション">
+]]
+
+            if current_page > 1 then
+                pagination_html = pagination_html .. string.format([[            <a href="/?paged=%d">前のページへ</a>
+]], current_page - 1)
+            end
+
+            if current_page < max_pages then
+                pagination_html = pagination_html .. string.format([[            <a href="/?paged=%d">次のページへ</a>
+]], current_page + 1)
+            end
+
+            pagination_html = pagination_html .. [[        </nav>
+]]
+            table.insert(output, pagination_html)
+        end
     else
         table.insert(output, [[
         <p>投稿が見つかりませんでした。</p>
@@ -63,7 +86,7 @@ function template.render(context)
     table.insert(output, [[
     </main>
     <footer>
-        <p>&copy; 2025 LuaAIDiary. All rights reserved.</p>
+        <p>&copy; ]] .. current_year .. [[ LuaAIDiary. All rights reserved.</p>
     </footer>
 </body>
 </html>
