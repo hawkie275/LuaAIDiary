@@ -570,6 +570,14 @@ function UserController:edit_profile(self)
     if not user then
         return { redirect_to = "/admin/login?redirect=/admin/profile/edit", status = 302 }
     end
+
+    -- 編集フォームは常に最新のユーザー情報を初期値にする
+    local latest_user, find_err = User:find(user.id)
+    if latest_user then
+        user = latest_user
+    else
+        ngx.log(ngx.WARN, "プロフィール編集用ユーザー再取得失敗: ", find_err or "unknown")
+    end
     
     -- CSRFトークンを生成
     local csrf_token, csrf_err = csrf.generate_token(session)
