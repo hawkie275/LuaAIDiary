@@ -50,6 +50,15 @@ local function check_user_management_permission(user)
 end
 
 -- 管理画面テンプレートのレンダリング
+local function get_app_version()
+    local env_version = os.getenv("APP_VERSION")
+    if env_version and #env_version > 0 and env_version ~= "Unknown" and env_version ~= "unknown" then
+        return env_version
+    end
+
+    return "Unknown"
+end
+
 local function render_admin_template(template_name, data)
     local template_path = string.format("/app/views/admin/%s.etlua", template_name)
     local layout_path = "/app/views/admin/layout.etlua"
@@ -92,7 +101,8 @@ local function render_admin_template(template_name, data)
         active_menu = data.active_menu or "users",
         success_message = data.success_message,
         error_message = data.error_message,
-        _VERSION = _VERSION
+        _VERSION = _VERSION,
+        app_version = get_app_version()
     }
     
     -- レイアウトをレンダリング
@@ -507,6 +517,14 @@ function UserController:profile(self)
         return { redirect_to = "/admin/login?redirect=/admin/profile", status = 302 }
     end
     
+    -- 最新ユーザー情報をDBから再取得（表示整合性のため）
+    local latest_user, find_err = User:find(user.id)
+    if latest_user then
+        user = latest_user
+    else
+        ngx.log(ngx.WARN, "プロフィール表示用ユーザー再取得失敗: ", find_err or "unknown")
+    end
+
     -- ユーザー統計情報を取得
     local stats = {
         post_count = 0,
@@ -633,7 +651,7 @@ function UserController:update_profile(self)
     local updated_user, _ = User:find(user.id)
     if updated_user then
         updated_user.password_hash = nil
-        session:set_user(updated_user)
+        session:set_user(updated_user.id, updated_user)
     end
     
     -- 成功時はプロフィールページにリダイレクト
