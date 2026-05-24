@@ -42,16 +42,18 @@
                     <label class="info-label">登録日</label>
                     <span class="info-value">
                         <% 
+                        local created_at_text = "-"
                         if user.created_at then
-                            if type(user.created_at) == "number" then
-                                print(os.date("%Y年%m月%d日 %H:%M", user.created_at))
+                            if type(user.created_at) == "string" then
+                                created_at_text = user.created_at:sub(1, 10)
+                            elseif type(user.created_at) == "number" then
+                                created_at_text = os.date("%Y-%m-%d", user.created_at)
                             else
-                                print(user.created_at)
+                                created_at_text = tostring(user.created_at)
                             end
-                        else
-                            print("-")
                         end
                         %>
+                        <%= created_at_text %>
                     </span>
                 </div>
             </div>

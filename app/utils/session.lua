@@ -240,8 +240,35 @@ end
 
 -- ログインユーザー情報を設定
 function Session:set_user(user_id, user_data)
-  self.data.user_id = user_id
-  self.data.user = user_data
+  -- 互換フォールバック: set_user(user_table) 形式の誤用を吸収
+  if type(user_id) == "table" and user_data == nil then
+    ngx.log(ngx.WARN, "Session:set_user called with legacy signature; expected (user_id, user_data)")
+    user_data = user_id
+    user_id = user_id.id
+  end
+
+  -- 引数バリデーション
+  if user_id == nil and type(user_data) == "table" then
+    user_id = user_data.id
+  end
+
+  if user_id == nil then
+    ngx.log(ngx.WARN, "Session:set_user missing user_id; keeping previous user_id")
+  else
+    self.data.user_id = user_id
+  end
+
+  if user_data ~= nil and type(user_data) ~= "table" then
+    ngx.log(ngx.WARN, "Session:set_user user_data should be table")
+  end
+
+  if type(user_data) == "table" then
+    self.data.user = user_data
+  elseif user_data == nil and type(self.data.user) ~= "table" then
+    self.data.user = nil
+  end
+
+  return true
 end
 
 -- ログインユーザー情報を取得
