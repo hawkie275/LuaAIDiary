@@ -1,9 +1,9 @@
-FROM openresty/openresty:alpine
+# ==========================================
+# 1. ビルド用ステージ（C拡張のコンパイルを実行）
+# ==========================================
+FROM openresty/openresty:alpine AS builder
 
-ARG APP_VERSION=Unknown
-ENV APP_VERSION=${APP_VERSION}
-
-# 必要なパッケージのインストール
+# 必要なビルドツールのインストール
 RUN apk add --no-cache \
     git \
     gcc \
@@ -12,13 +12,13 @@ RUN apk add --no-cache \
     musl-dev \
     openssl-dev \
     postgresql-dev \
-    postgresql-client \
     lua5.1 \
     lua5.1-dev \
     luarocks5.1 \
     unzip
 
 # 必要なLuaモジュールのインストール
+# 基準の先頭に luabitop を戻しています
 RUN luarocks-5.1 install luabitop \
     && luarocks-5.1 install lapis \
     && luarocks-5.1 install lua-resty-redis \
@@ -32,10 +32,22 @@ RUN luarocks-5.1 install luabitop \
     && luarocks-5.1 install lua-resty-session \
     && luarocks-5.1 install lua-resty-rsa
 
+# ==========================================
+# 2. 実行用ステージ（本番用の軽量イメージ）
+# ==========================================
+FROM openresty/openresty:alpine
+
+ARG APP_VERSION=Unknown
+ENV APP_VERSION=${APP_VERSION}
+
+# ビルダーステージから、コンパイル済みの LuaRocks ライブラリ群（luabitop含む）をコピー
+COPY --from=builder /usr/local/share/lua/ /usr/local/share/lua/
+COPY --from=builder /usr/local/lib/lua/ /usr/local/lib/lua/
+
 # 作業ディレクトリの設定
 WORKDIR /app
 
-# アプリケーション本体をイメージに同梱
+# アプリケーション本体・設定ファイルをイメージに同梱
 COPY app/ /app/
 COPY wp-content/ /app/wp-content/
 COPY static/ /usr/local/openresty/nginx/html/static/
