@@ -197,6 +197,7 @@ jobs:
 
           log "Checking required commands..."
           require_cmd docker
+          require_cmd make
           require_cmd sed
           if ! docker compose version >/dev/null 2>&1; then
             fail "required command not available: docker compose"
@@ -260,6 +261,11 @@ jobs:
 
           if ! grep -q "APP_VERSION=${APP_VERSION_VALUE}" "$OVERRIDE_FILE"; then
             fail "override file verification failed: APP_VERSION not found in ${OVERRIDE_FILE}"
+          fi
+
+          log "Running database migrations before restarting web service..."
+          if ! make migrate; then
+            fail "database migration failed"
           fi
 
           if ! docker compose up -d web; then

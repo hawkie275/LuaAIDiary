@@ -1,4 +1,4 @@
-.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup setup-build sync-app-version health status
+.PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli migrate test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup setup-build sync-app-version health status
 
 # Docker Composeコマンド
 DOCKER_COMPOSE := docker compose
@@ -22,6 +22,7 @@ help:
 	@echo "  make shell-db   - DBコンテナのシェルに入る"
 	@echo "  make psql       - PostgreSQLクライアントに接続"
 	@echo "  make redis-cli  - Redisクライアントに接続"
+	@echo "  make migrate    - 既存DBへ未適用マイグレーションを適用"
 	@echo "  make test           - E2Eテストを実行（HTTP経由）"
 	@echo "  make test-integration - 統合テストを実行（実際のDB使用）"
 	@echo "  make test-e2e       - E2Eテストを実行（HTTP経由）"
@@ -104,6 +105,12 @@ psql:
 redis-cli:
 	@echo "📦 Redisクライアントに接続中..."
 	$(DOCKER_COMPOSE) exec redis redis-cli
+
+# 既存DBへ未適用マイグレーションを適用
+migrate:
+	@echo "🗄️  データベースマイグレーションを実行中..."
+	$(DOCKER_COMPOSE) exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < postgresql/migrations/001_add_media_tables.sql
+	@echo "✅ データベースマイグレーションが完了しました"
 
 # E2Eテストを実行（HTTP経由）
 test:
