@@ -217,6 +217,10 @@ function _M.render_markdown(text)
     -- 斜体（*text*）
     html = html:gsub("%*([^%*\n]+)%*", "<em>%1</em>")
     
+    -- 画像（![alt](url)）
+    -- 通常リンクより先に変換しないと、![alt](url) が !<a href='url'>alt</a> になる
+    html = html:gsub("!%[([^%]]*)%]%(([^%)]+)%)", "<img src='%2' alt='%1'>")
+
     -- リンク（[text](url)）
     html = html:gsub("%[([^%]]+)%]%(([^%)]+)%)", "<a href='%2'>%1</a>")
     

@@ -128,6 +128,7 @@ test-e2e:
 	@echo "🌐 E2Eテストを実行中（HTTP経由）..."
 	@echo "⚠️  注意: サービスが起動している必要があります"
 	@bash tests/e2e/test_post_api.sh
+	@bash tests/e2e/test_media_api.sh
 
 # すべてのテストを実行
 test-all:

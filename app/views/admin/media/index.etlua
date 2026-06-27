@@ -1,0 +1,50 @@
+<div class="media-library" data-csrf-token="<%= csrf_token %>">
+    <div class="media-toolbar">
+        <form method="GET" action="/admin/media" class="media-search-form">
+            <input type="text" name="q" value="<%= q or '' %>" class="form-control" placeholder="ファイル名前方一致で検索">
+            <button type="submit" class="btn btn-secondary">検索</button>
+        </form>
+        <label class="btn btn-primary media-upload-label">
+            画像をアップロード
+            <input type="file" id="media-upload-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+        </label>
+    </div>
+
+    <div class="media-help-text">
+        対象形式: jpg, jpeg, png, webp, gif / 最大サイズ: 10MB。重複画像は既存メディアを再利用します。
+    </div>
+
+    <div id="media-upload-progress" class="media-upload-progress" style="display:none;"></div>
+
+    <div class="media-grid" id="media-grid">
+        <% if media_items and #media_items > 0 then %>
+            <% for _, item in ipairs(media_items) do %>
+                <div class="media-card" data-media-id="<%= item.id %>">
+                    <div class="media-thumb">
+                        <img src="<%= item.thumbnail_url or item.url %>" alt="<%= item.alt_text or item.file_name %>">
+                    </div>
+                    <div class="media-card-body">
+                        <input class="form-control media-file-name" value="<%= item.file_name %>">
+                        <div class="media-meta">
+                            <span><%= item.mime_type %></span>
+                            <span><%= item.size_bytes %> bytes</span>
+                        </div>
+                        <div class="media-meta">
+                            <span><%= item.created_at %></span>
+                            <span class="media-usage <%= item.in_use and 'in-use' or 'unused' %>">
+                                <%= item.in_use and ('使用中: ' .. item.usage_count) or '未使用' %>
+                            </span>
+                        </div>
+                        <div class="media-actions">
+                            <button type="button" class="btn btn-secondary btn-sm media-copy-url" data-url="<%= item.url %>">URLコピー</button>
+                            <button type="button" class="btn btn-primary btn-sm media-rename">名称変更</button>
+                            <button type="button" class="btn btn-danger btn-sm media-delete" <%= item.in_use and 'disabled title="参照中のため削除できません"' or '' %>>削除</button>
+                        </div>
+                    </div>
+                </div>
+            <% end %>
+        <% else %>
+            <p class="text-muted">メディアはまだありません。</p>
+        <% end %>
+    </div>
+</div>

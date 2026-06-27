@@ -20,6 +20,9 @@
             
             <div class="form-group">
                 <label for="content">本文</label>
+                <div class="editor-toolbar">
+                    <button type="button" class="btn btn-secondary btn-sm" id="open-media-picker">🖼️ メディアを挿入</button>
+                </div>
                 <div class="editor-preview-container">
                     <div class="editor-pane">
                         <textarea id="content" name="content" class="form-control" rows="20" required><%- post and post.content or '' %></textarea>
@@ -159,6 +162,30 @@
         </div>
     </div>
 </form>
+
+<!-- メディア選択モーダル -->
+<div id="media-picker-modal" class="modal media-picker-modal" style="display:none;">
+    <div class="modal-content media-picker-content">
+        <div class="modal-header">
+            <h2>🖼️ メディアを選択</h2>
+            <span class="close" id="media-picker-close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="media-toolbar">
+                <label class="btn btn-primary media-upload-label">
+                    画像をアップロード
+                    <input type="file" id="media-picker-upload-input" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden>
+                </label>
+                <button type="button" class="btn btn-secondary" id="media-picker-reload">再読み込み</button>
+            </div>
+            <div id="media-picker-progress" class="media-upload-progress" style="display:none;"></div>
+            <div id="media-picker-grid" class="media-grid media-picker-grid"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" id="media-picker-cancel" class="btn btn-default">キャンセル</button>
+        </div>
+    </div>
+</div>
 
 <!-- AI校正結果モーダル -->
 <div id="diff-modal" class="modal" style="display: none;">
