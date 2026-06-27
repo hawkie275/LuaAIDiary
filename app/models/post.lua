@@ -6,6 +6,7 @@ local slug_util = require("utils.slug")
 local validator = require("utils.validator")
 local db_config = require("config.database")
 local cache_service = require("services.cache_service")
+local Media = require("models.media")
 
 local _M = Base.new("posts")
 
@@ -100,6 +101,12 @@ function _M.create_post(data)
                 _M.add_tag(post_id, tag_id, db)
             end
         end
+
+        -- 記事本文内のアップロード画像URLからメディア利用状況を同期
+        local media_ok, media_err = Media.sync_post_usages(post_id, data.content or "", db)
+        if not media_ok then
+            error(media_err or "メディア利用状況の同期に失敗しました")
+        end
         
         return post_id
     end)
@@ -188,6 +195,12 @@ function _M.update_post(id, data)
         -- タグを更新
         if tags then
             _M.sync_tags(id, tags, db)
+        end
+
+        -- 記事本文内のアップロード画像URLからメディア利用状況を同期
+        local media_ok, media_err = Media.sync_post_usages(id, data.content or post.content or "", db)
+        if not media_ok then
+            error(media_err or "メディア利用状況の同期に失敗しました")
         end
         
         return true

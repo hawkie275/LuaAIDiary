@@ -57,6 +57,18 @@ function insertIntoEditor(text) {
     }
 }
 
+// 現在のカーソル位置へテキストを挿入
+function insertAtCursor(text) {
+    const textarea = document.querySelector('textarea[name="content"]');
+    if (!textarea) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    textarea.dispatchEvent(new Event('input'));
+    textarea.focus();
+}
+
 // HTMLエスケープ
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -73,6 +85,206 @@ function showLoading() {
 function hideLoading() {
     const loading = document.getElementById('ai-loading');
     if (loading) loading.style.display = 'none';
+}
+
+// ========================================
+// メディアライブラリ機能
+// ========================================
+
+async function uploadMediaFiles(files, progressElement) {
+    const uploaded = [];
+    if (!files || files.length === 0) return uploaded;
+    if (progressElement) {
+        progressElement.style.display = 'block';
+        progressElement.textContent = 'アップロード中...';
+    }
+
+    for (const file of files) {
+        if (file.size > 10 * 1024 * 1024) {
+            showNotification('ファイルサイズが上限 10MB を超えています。10MB 以下の画像を選択してください。', 'error');
+            continue;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await fetch('/api/media', {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': getCSRFToken() },
+                body: formData
+            });
+            const result = await response.json();
+            if (response.status === 413) {
+                showNotification('ファイルサイズが上限 10MB を超えています。10MB 以下の画像を選択してください。', 'error');
+                continue;
+            }
+            if (!response.ok) {
+                throw new Error(result.error || 'アップロードに失敗しました');
+            }
+            if (result.deduplicated) {
+                showNotification('既存の同一画像を再利用しました。', 'success');
+            } else {
+                showNotification('画像をアップロードしました。', 'success');
+            }
+            uploaded.push(result);
+        } catch (error) {
+            showNotification(error.message, 'error');
+        }
+    }
+
+    if (progressElement) {
+        progressElement.style.display = 'none';
+        progressElement.textContent = '';
+    }
+    return uploaded;
+}
+
+async function fetchMediaItems() {
+    const response = await fetch('/api/media?per_page=100', {
+        headers: { 'X-CSRF-Token': getCSRFToken() }
+    });
+    const result = await response.json();
+    if (!response.ok) {
+        throw new Error(result.error || 'メディア一覧の取得に失敗しました');
+    }
+    return result.items || [];
+}
+
+function mediaThumbUrl(item) {
+    return item.thumbnail_url || item.url;
+}
+
+function markdownForMedia(item) {
+    const alt = item.alt_text || item.file_name || '';
+    return `![${alt}](${item.url})`;
+}
+
+function renderMediaPickerItems(items) {
+    const grid = document.getElementById('media-picker-grid');
+    if (!grid) return;
+    if (!items.length) {
+        grid.innerHTML = '<p class="text-muted">メディアはまだありません。</p>';
+        return;
+    }
+    grid.innerHTML = items.map((item, index) => `
+        <button type="button" class="media-card media-picker-item" data-media-index="${index}">
+            <div class="media-thumb"><img src="${escapeHtml(mediaThumbUrl(item))}" alt="${escapeHtml(item.alt_text || item.file_name || '')}"></div>
+            <div class="media-card-body">
+                <div class="media-picker-name">${escapeHtml(item.file_name || '')}</div>
+                <div class="media-meta"><span>${escapeHtml(item.mime_type || '')}</span><span>${Number(item.size_bytes || 0)} bytes</span></div>
+            </div>
+        </button>
+    `).join('');
+
+    grid.querySelectorAll('.media-picker-item').forEach(button => {
+        button.addEventListener('click', () => {
+            const item = items[Number(button.getAttribute('data-media-index'))];
+            insertAtCursor(markdownForMedia(item));
+            showNotification('Markdown画像記法を挿入しました。', 'success');
+            const modal = document.getElementById('media-picker-modal');
+            if (modal) modal.style.display = 'none';
+        });
+    });
+}
+
+async function reloadMediaPicker() {
+    try {
+        renderMediaPickerItems(await fetchMediaItems());
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+async function renameMedia(card) {
+    const id = card.getAttribute('data-media-id');
+    const input = card.querySelector('.media-file-name');
+    const fileName = input ? input.value : '';
+    try {
+        const response = await fetch(`/api/media/${id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCSRFToken()
+            },
+            body: JSON.stringify({ file_name: fileName })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '名称変更に失敗しました');
+        showNotification('ファイル名を変更しました。', 'success');
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+async function deleteMedia(card) {
+    if (!confirm('このメディアを削除しますか？')) return;
+    const id = card.getAttribute('data-media-id');
+    try {
+        const response = await fetch(`/api/media/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': getCSRFToken() }
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || '削除に失敗しました');
+        card.remove();
+        showNotification('メディアを削除しました。', 'success');
+    } catch (error) {
+        showNotification(error.message, 'error');
+    }
+}
+
+function initMediaLibrary() {
+    const uploadInput = document.getElementById('media-upload-input');
+    if (uploadInput) {
+        uploadInput.addEventListener('change', async () => {
+            await uploadMediaFiles(uploadInput.files, document.getElementById('media-upload-progress'));
+            window.location.reload();
+        });
+    }
+
+    document.querySelectorAll('.media-card[data-media-id]').forEach(card => {
+        const renameButton = card.querySelector('.media-rename');
+        const deleteButton = card.querySelector('.media-delete');
+        const copyButton = card.querySelector('.media-copy-url');
+        if (renameButton) renameButton.addEventListener('click', () => renameMedia(card));
+        if (deleteButton) deleteButton.addEventListener('click', () => deleteMedia(card));
+        if (copyButton) copyButton.addEventListener('click', async () => {
+            await navigator.clipboard.writeText(copyButton.getAttribute('data-url'));
+            showNotification('URLをコピーしました。', 'success');
+        });
+    });
+
+    const openPicker = document.getElementById('open-media-picker');
+    const pickerModal = document.getElementById('media-picker-modal');
+    if (openPicker && pickerModal) {
+        openPicker.addEventListener('click', async () => {
+            pickerModal.style.display = 'block';
+            await reloadMediaPicker();
+        });
+        ['media-picker-close', 'media-picker-cancel'].forEach(id => {
+            const button = document.getElementById(id);
+            if (button) button.addEventListener('click', () => { pickerModal.style.display = 'none'; });
+        });
+    }
+
+    const pickerReload = document.getElementById('media-picker-reload');
+    if (pickerReload) pickerReload.addEventListener('click', reloadMediaPicker);
+
+    const pickerUpload = document.getElementById('media-picker-upload-input');
+    if (pickerUpload) {
+        pickerUpload.addEventListener('change', async () => {
+            const uploaded = await uploadMediaFiles(pickerUpload.files, document.getElementById('media-picker-progress'));
+            if (uploaded.length > 0) {
+                insertAtCursor(markdownForMedia(uploaded[0]));
+                showNotification('アップロードした画像のMarkdownを挿入しました。', 'success');
+                const modal = document.getElementById('media-picker-modal');
+                if (modal) modal.style.display = 'none';
+            } else {
+                await reloadMediaPicker();
+            }
+        });
+    }
 }
 
 // ========================================
@@ -265,6 +477,8 @@ async function loadAISettings() {
 // ========================================
 
 document.addEventListener('DOMContentLoaded', function() {
+    initMediaLibrary();
+
     // ========================================
     // 共通機能
     // ========================================

@@ -7,6 +7,7 @@ local Category = require("models.category")
 local Tag = require("models.tag")
 local Comment = require("models.comment")
 local UserSettings = require("models.user_settings")
+local Media = require("models.media")
 local csrf = require("middleware.csrf")
 local db_config = require("config.database")
 local etlua = require("etlua")
@@ -475,6 +476,52 @@ function AdminController.dashboard(self)
     -- HTMLレスポンスを返す
     self.res.headers["Content-Type"] = "text/html; charset=utf-8"
     return html
+end
+
+-- ========================================
+-- メディア管理メソッド
+-- ========================================
+
+-- メディア一覧ページ
+-- GET /admin/media
+function AdminController.media_index(self)
+    -- 認証チェック
+    local user, session, err = get_authenticated_user()
+    if not user then
+        return { redirect_to = "/admin/login?redirect=/admin/media", status = 302 }
+    end
+
+    if not check_admin_permission(user) then
+        ngx.status = 403
+        return render_error("403 Forbidden", "このページへのアクセス権限がありません")
+    end
+
+    local csrf_token, csrf_err = csrf.generate_token(session)
+    if not csrf_token then
+        ngx.log(ngx.ERR, "CSRFトークン生成エラー: ", csrf_err or "unknown")
+        csrf_token = ""
+    end
+
+    local args = self.req.params_get or {}
+    local media_result, media_err = Media.list_active({
+        page = args.page,
+        per_page = 40,
+        q = args.q
+    })
+    if not media_result then
+        ngx.log(ngx.WARN, "メディア一覧取得エラー: ", media_err or "unknown")
+        media_result = { items = {}, pagination = { page = 1, per_page = 40, total = 0, total_pages = 0 } }
+    end
+
+    return render_admin_template("media/index", {
+        user = user,
+        csrf_token = csrf_token,
+        media_items = media_result.items,
+        pagination = media_result.pagination,
+        q = args.q or "",
+        page_title = "メディアライブラリ",
+        active_menu = "media"
+    })
 end
 
 -- ========================================

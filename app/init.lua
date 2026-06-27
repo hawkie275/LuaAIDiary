@@ -1,5 +1,6 @@
 -- LuaAIDiary アプリケーション初期化
 local lapis = require("lapis")
+local respond_to = require("lapis.application").respond_to
 local app = lapis.Application()
 
 -- モデルの初期化
@@ -38,6 +39,9 @@ local user_controller = require("controllers.user_controller")
 
 -- Geminiコントローラーの初期化
 local gemini_controller = require("controllers.gemini_controller")
+
+-- メディアコントローラーの初期化
+local media_controller = require("controllers.media_controller")
 
 -- CSRFミドルウェアの初期化
 local csrf = require("middleware.csrf")
@@ -352,6 +356,31 @@ app:delete("/api/tags/:id", function(self)
 end)
 
 -- ========================================
+-- メディアAPIエンドポイント
+-- ========================================
+
+-- メディア一覧取得
+app:get("/api/media", media_controller.index)
+
+-- メディアアップロード
+app:post("/api/media", function(self)
+    return media_controller.create(self)
+end)
+
+-- メディア詳細取得・名称変更・論理削除
+app:match("media_item", "/api/media/:id", respond_to({
+    GET = function(self)
+        return media_controller.show(self.params.id)
+    end,
+    PATCH = function(self)
+        return media_controller.update(self.params.id)
+    end,
+    DELETE = function(self)
+        return media_controller.delete(self.params.id)
+    end
+}))
+
+-- ========================================
 -- 管理画面エンドポイント
 -- ========================================
 
@@ -388,6 +417,11 @@ end)
 -- 管理画面ダッシュボード
 app:get("/admin/dashboard", function(self)
     return admin_controller.dashboard(self)
+end)
+
+-- 管理画面メディアライブラリ
+app:get("/admin/media", function(self)
+    return admin_controller.media_index(self)
 end)
 
 -- ========================================

@@ -38,6 +38,115 @@ body {
 }
 
 /* ========================================
+   メディアライブラリ
+   ======================================== */
+
+.media-toolbar,
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.media-search-form {
+    display: flex;
+    gap: 8px;
+    flex: 1;
+    max-width: 520px;
+}
+
+.media-help-text,
+.media-upload-progress {
+    margin-bottom: 16px;
+    color: var(--text-secondary);
+}
+
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.media-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    text-align: left;
+    color: inherit;
+}
+
+.media-picker-item {
+    cursor: pointer;
+    padding: 0;
+}
+
+.media-picker-item:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.12);
+}
+
+.media-thumb {
+    aspect-ratio: 16 / 10;
+    background: #f6f7f7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.media-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.media-card-body {
+    padding: 12px;
+}
+
+.media-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 6px;
+}
+
+.media-usage.in-use {
+    color: var(--warning-color);
+    font-weight: 600;
+}
+
+.media-usage.unused {
+    color: var(--success-color);
+}
+
+.media-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.media-picker-content {
+    max-width: 980px;
+    width: calc(100% - 48px);
+}
+
+.media-picker-grid {
+    max-height: 60vh;
+    overflow: auto;
+}
+
+.media-picker-name {
+    font-weight: 600;
+    word-break: break-all;
+}
+
+/* ========================================
    管理画面全体レイアウト
    ======================================== */
 
