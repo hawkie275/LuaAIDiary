@@ -42,7 +42,7 @@
     </div>
     <div class="card-body">
         <% if recent_posts and #recent_posts > 0 then %>
-            <table class="data-table">
+            <table class="data-table recent-posts-table">
                 <thead>
                     <tr>
                         <th>タイトル</th>
@@ -91,9 +91,11 @@
                                     <span class="text-muted">-</span>
                                 <% end %>
                             </td>
-                            <td>
-                                <a href="/admin/posts/<%= post.id %>/edit" class="btn btn-primary" style="padding: 5px 12px; font-size: 12px; text-decoration: none;">編集</a>
-                                <a href="/posts/<%= post.slug %>" target="_blank" class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px; text-decoration: none; margin-left: 5px;">表示</a>
+                            <td class="recent-posts-actions-cell">
+                                <div class="recent-posts-actions">
+                                    <a href="/admin/posts/<%= post.id %>/edit" class="btn btn-sm btn-primary">編集</a>
+                                    <a href="/posts/<%= post.slug %>" target="_blank" class="btn btn-sm btn-secondary">表示</a>
+                                </div>
                             </td>
                         </tr>
                     <% end %>

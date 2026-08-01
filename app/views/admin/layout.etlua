@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<%= csrf_token %>">
     <title><%= page_title or "管理画面" %> - LuaAIDiary</title>
+    <script>
+        (function() {
+            try {
+                if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                    document.documentElement.classList.add('sidebar-collapsed-initial');
+                    document.documentElement.classList.add('sidebar-state-restoring');
+                }
+            } catch (error) {
+                // localStorage が利用できない環境では通常の初期表示にフォールバックする
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="/static/css/admin.css">
 </head>
 <body>
@@ -12,7 +24,7 @@
         <!-- ヘッダー -->
         <header class="admin-header">
             <div class="header-left">
-                <button class="menu-toggle" id="menuToggle">☰</button>
+                <button class="menu-toggle" id="menuToggle" type="button" aria-controls="adminSidebar" aria-expanded="false" aria-label="機能一覧を開閉">☰</button>
                 <h1 class="site-title">LuaAIDiary 管理画面</h1>
             </div>
             <div class="header-right">
@@ -157,23 +169,86 @@
             const menuToggle = document.getElementById('menuToggle');
             const sidebar = document.getElementById('adminSidebar');
             const wrapper = document.querySelector('.admin-wrapper');
+            const responsiveQuery = window.matchMedia('(max-width: 1024px)');
+
+            function setMenuExpanded(expanded) {
+                menuToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            }
+
+            function closeResponsiveMenu() {
+                sidebar.classList.remove('show');
+                setMenuExpanded(false);
+            }
 
             if (menuToggle && sidebar) {
                 menuToggle.addEventListener('click', function() {
+                    if (responsiveQuery.matches) {
+                        sidebar.classList.remove('collapsed');
+                        wrapper.classList.remove('sidebar-collapsed');
+
+                        const isShown = sidebar.classList.toggle('show');
+                        setMenuExpanded(isShown);
+                        return;
+                    }
+
                     sidebar.classList.toggle('collapsed');
                     wrapper.classList.toggle('sidebar-collapsed');
-                    
+
                     // ローカルストレージに状態を保存
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('sidebarCollapsed', isCollapsed);
+                    setMenuExpanded(!isCollapsed);
                 });
 
                 // ページ読み込み時に前回の状態を復元
                 const savedState = localStorage.getItem('sidebarCollapsed');
-                if (savedState === 'true') {
+                if (!responsiveQuery.matches && savedState === 'true') {
                     sidebar.classList.add('collapsed');
                     wrapper.classList.add('sidebar-collapsed');
+                    setMenuExpanded(false);
+                } else {
+                    setMenuExpanded(!responsiveQuery.matches);
                 }
+
+                document.documentElement.classList.remove('sidebar-collapsed-initial');
+                window.requestAnimationFrame(function() {
+                    document.documentElement.classList.remove('sidebar-state-restoring');
+                });
+
+                sidebar.querySelectorAll('.nav-link').forEach(function(link) {
+                    link.addEventListener('click', function() {
+                        if (responsiveQuery.matches) {
+                            closeResponsiveMenu();
+                        }
+                    });
+                });
+
+                sidebar.addEventListener('click', function(event) {
+                    if (responsiveQuery.matches && !event.target.closest('.nav-menu')) {
+                        closeResponsiveMenu();
+                    }
+                });
+
+                document.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape' && responsiveQuery.matches) {
+                        closeResponsiveMenu();
+                    }
+                });
+
+                responsiveQuery.addEventListener('change', function(event) {
+                    sidebar.classList.remove('show');
+                    if (event.matches) {
+                        sidebar.classList.remove('collapsed');
+                        wrapper.classList.remove('sidebar-collapsed');
+                        setMenuExpanded(false);
+                        return;
+                    }
+
+                    const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+                    sidebar.classList.toggle('collapsed', isCollapsed);
+                    wrapper.classList.toggle('sidebar-collapsed', isCollapsed);
+                    setMenuExpanded(!isCollapsed);
+                });
             }
 
             // フラッシュメッセージの自動非表示
