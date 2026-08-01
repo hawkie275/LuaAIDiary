@@ -8,7 +8,7 @@ function template.render(context)
     local current_year = os.date("%Y")
     local current_page = tonumber(query.query_vars and query.query_vars.paged) or 1
     local max_pages = tonumber(query.max_num_pages) or 1
-    local has_next_page = (current_page < max_pages) or (#posts >= 10)
+    local has_next_page = current_page < max_pages
     
     -- wp_functionsを読み込む
     local wp = require("theme_engine.wp_functions")
