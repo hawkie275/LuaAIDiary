@@ -6,8 +6,10 @@ set -e
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 API_URL="${BASE_URL}/api"
-ADMIN_USER="${ADMIN_USER:-admin}"
+ADMIN_USER="${ADMIN_USER:-media_e2e_admin_$(date +%s)}"
 ADMIN_PASS="${ADMIN_PASS:-admin123}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-${ADMIN_USER}@test.local}"
+ADMIN_PASSWORD_HASH="${ADMIN_PASSWORD_HASH:-\$2b\$10\$Yt1OM2AKndiDQcVFgb5BTOPyUAmJUGnPCtkDS8ydVFlcxxQSgoPm.}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -20,10 +22,15 @@ COOKIE_FILE="/tmp/luaaidiary_media_e2e_cookies.txt"
 TEST_IMAGE="/tmp/luaaidiary_media_e2e.png"
 MEDIA_ID=0
 POST_ID=0
+ADMIN_CREATED=0
 rm -f "$COOKIE_FILE" "$TEST_IMAGE"
 
 cleanup() {
   rm -f "$COOKIE_FILE" "$TEST_IMAGE"
+  if [ "$ADMIN_CREATED" -eq 1 ]; then
+    docker compose exec -T db psql -U luaaidiary -d luaaidiary -v ON_ERROR_STOP=1 \
+      -c "BEGIN; DELETE FROM media WHERE uploaded_by IN (SELECT id FROM users WHERE username = '$ADMIN_USER' AND email = '$ADMIN_EMAIL'); DELETE FROM users WHERE username = '$ADMIN_USER' AND email = '$ADMIN_EMAIL'; COMMIT;" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
@@ -41,6 +48,15 @@ echo "メディアAPI E2Eテスト"
 echo "========================================="
 echo "Base URL: $BASE_URL"
 echo ""
+
+print_test "E2E用管理者ユーザー作成"
+if docker compose exec -T db psql -U luaaidiary -d luaaidiary -v ON_ERROR_STOP=1 \
+  -c "INSERT INTO users (username, email, password_hash, display_name, role) VALUES ('$ADMIN_USER', '$ADMIN_EMAIL', '$ADMIN_PASSWORD_HASH', 'Media E2E Admin', 'admin') ON CONFLICT (username) DO UPDATE SET email = EXCLUDED.email, password_hash = EXCLUDED.password_hash, display_name = EXCLUDED.display_name, role = EXCLUDED.role;" >/dev/null; then
+  ADMIN_CREATED=1
+  print_pass "E2E用管理者ユーザー作成成功"
+else
+  print_fail "E2E用管理者ユーザー作成失敗"
+fi
 
 # 1x1 PNG
 printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=' | base64 -d > "$TEST_IMAGE"

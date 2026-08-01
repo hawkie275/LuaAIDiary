@@ -28,6 +28,29 @@ local function get_app_version()
     return "Unknown"
 end
 
+-- OpenRestyバージョンを取得
+local function get_openresty_version()
+    local env_version = os.getenv("OPENRESTY_VERSION")
+    if env_version and #env_version > 0 and env_version ~= "Unknown" and env_version ~= "unknown" then
+        return env_version
+    end
+
+    local ok, handle = pcall(io.popen, "/usr/local/openresty/bin/openresty -v 2>&1")
+    if ok and handle then
+        local output = handle:read("*all")
+        handle:close()
+
+        if type(output) == "string" then
+            local version = output:match("openresty/([^%s]+)")
+            if version and #version > 0 then
+                return version
+            end
+        end
+    end
+
+    return "Unknown"
+end
+
 -- PostgreSQLバージョン文字列を X.X 形式に正規化
 local function normalize_postgres_version(raw)
     if not raw or type(raw) ~= "string" then
@@ -180,6 +203,7 @@ local function get_system_info()
         server_time = os.date("%Y-%m-%d %H:%M:%S"),
         database_status = "disconnected",
         app_version = get_app_version(),
+        openresty_version = get_openresty_version(),
         postgres_version = "Unknown",
         valkey_version = "Unknown"
     }
