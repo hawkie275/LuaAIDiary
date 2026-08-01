@@ -740,15 +740,12 @@ fi
 # 14. テストユーザーのクリーンアップ
 # ========================================
 print_test "テストユーザーのクリーンアップ"
-echo ""
-echo "  テストユーザー情報:"
-echo "  ユーザー名: $TEST_USERNAME"
-echo "  メールアドレス: $TEST_EMAIL"
-echo ""
-echo "  注: テスト後、以下のSQLでテストユーザーを削除してください:"
-echo "  docker-compose exec db psql -U luaaidiary -d luaaidiary -c \"DELETE FROM users WHERE username = '$TEST_USERNAME';\""
-echo ""
-print_pass "テストユーザー情報を表示（手動削除を推奨）"
+if docker compose exec -T db psql -U luaaidiary -d luaaidiary -v ON_ERROR_STOP=1 \
+  -c "DELETE FROM users WHERE username = '$TEST_USERNAME' AND email = '$TEST_EMAIL';" >/dev/null; then
+  print_pass "テストユーザーのクリーンアップ成功"
+else
+  print_fail "テストユーザーのクリーンアップ失敗"
+fi
 
 # ========================================
 # テスト結果サマリー

@@ -168,6 +168,10 @@
                 <div style="margin-top: 5px;"><%= _VERSION or "Unknown" %></div>
             </div>
             <div>
+                <strong style="color: var(--text-secondary); font-size: 13px;">Web Server バージョン:</strong>
+                <div style="margin-top: 5px;">OpenResty <%= system_info and system_info.openresty_version or "Unknown" %></div>
+            </div>
+            <div>
                 <strong style="color: var(--text-secondary); font-size: 13px;">サーバー時刻:</strong>
                 <div style="margin-top: 5px;"><%= os.date("%Y-%m-%d %H:%M:%S") %></div>
             </div>
