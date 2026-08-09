@@ -1,102 +1,105 @@
 # LuaAIDiary
 
-A Lua-based WordPress-like blog system
+A Lua/OpenResty-based WordPress-like blog system with an admin panel, JSON APIs, Gemini-powered writing support, and local image media management.
+
+Japanese documentation is available in [`README_JP.md`](README_JP.md).
 
 ## Overview
 
-LuaAIDiary is a high-performance blog system built with OpenResty (Nginx + LuaJIT), Lapis, PostgreSQL, and Valkey. It provides an easy setup using Docker Compose and a development environment that allows testing during development.
+LuaAIDiary is a blog/CMS application built on OpenResty, LuaJIT, Lapis, PostgreSQL, and Valkey. It provides WordPress-like public URLs, an authenticated admin UI for content management, REST-like APIs for posts/categories/tags/media/authentication, and Docker Compose-based local development.
 
-## Key Features
+The current implementation includes admin content management, authentication/authorization, Gemini AI support, and Phase 1 local image upload support backed by PostgreSQL metadata and a Docker volume.
 
-- **Ultra-Fast Performance**: Asynchronous I/O processing with OpenResty + LuaJIT delivers several times better performance than traditional PHP-based CMS
-- **AI Content Generation**: Automatically generate complete articles from topics using Gemini API integration
-- **AI Proofreading**: Automatically improve grammar, expression, and structure
-- **Complete Admin Panel**: Intuitive content management with WordPress-style dashboard
-- **Lightweight**: Fast script execution with LuaJIT
-- **Role-Based Access Control**: 5-tier permission management (admin/editor/author/contributor/subscriber)
-- **Full-Text Search**: High-speed search with PostgreSQL GIN indexes
-- **Test Environment**: Automated testing support with Busted
-- **Developer Tools**: Enhanced development efficiency with Makefile and Luacheck
-- **Scalable**: Horizontal scaling with Valkey and PostgreSQL
-- **Hot Reload**: Automatic reflection of code changes
-- **Secure**: bcrypt, CSRF protection, encrypted API key management
+## Implemented Features
 
-## ⚡ Performance
+### Public blog frontend
 
-LuaAIDiary is designed as a high-performance CMS. The following results are from **local benchmark testing** for reference purposes:
+- Home page, single post pages, category archives, tag archives, author archives, date archives, search results, and 404 handling.
+- WordPress-like routing such as `/`, `/posts/:slug`, `/category/:slug`, `/tag/:slug`, `/author/:username`, `/search`, and date archive paths.
+- Basic public rendering through the public controller path currently wired in [`app/init.lua`](app/init.lua).
 
-- **Throughput**: 70,405 req/sec
-- **Latency**: 2.83ms average
+### Admin panel
 
-*Local Benchmark Environment: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)*
+- Login/logout and password change screens.
+- Dashboard with site statistics, recent posts, and system information.
+- Post list/create/edit/delete flows with draft/published/trash status, categories, tags, Markdown preview, and media picker integration.
+- Category and tag management.
+- User management for administrators and profile editing for authenticated users.
+- Site settings and AI preference/API key management.
+- Media library screen for image uploads, search, rename, deletion, and usage status.
 
-**⚠️ Note**: These are reference values from synthetic benchmarks in an isolated environment. Production performance will vary significantly depending on:
-- Network latency and bandwidth
-- Database size and query complexity
-- Concurrent user patterns and traffic spikes
-- Infrastructure configuration (CDN, load balancers, etc.)
-- Security layers and third-party integrations
+### APIs
 
-📊 **Detailed Performance Report**: [`tests/performance/results/performance_improvement_report.md`](tests/performance/results/performance_improvement_report.md)
+- Authentication API: register, login, logout, current user, password change, and auth status check.
+- CSRF token endpoint for state-changing requests.
+- Post CRUD API with category/tag assignment and ownership checks.
+- Category and tag CRUD APIs with role-based permissions.
+- Media API for image upload, listing, detail, rename, and logical deletion.
+- Markdown preview API.
+- Gemini API endpoints for article generation, proofreading, and connection testing.
+- AI settings API for user preferences and encrypted Gemini API key storage.
+
+### Authentication and security
+
+- Session-based authentication backed by Valkey.
+- Role-based access control using `admin`, `editor`, `author`, and `subscriber` roles.
+- CSRF protection for state-changing APIs and admin forms.
+- Password hashing through the authentication service.
+- Gemini API keys are stored through the user settings model with encryption support.
+
+### Media upload
+
+- Local image upload for `jpg`, `jpeg`, `png`, `webp`, and `gif`.
+- Admin media library and post editor media picker.
+- Metadata storage in `media` and `media_post_usages` tables.
+- SHA-256 duplicate detection and active media reuse.
+- Thumbnail generation uses `vips`/`vipsheader` when available, with fallback to the original image URL when thumbnail generation fails.
+- Logical deletion with protection for media referenced by posts; post create/update synchronizes `/uploads/...` references into `media_post_usages`.
+- Uploaded files are stored in the `media_uploads` Docker volume mounted at `/app/uploads`.
+
+### Database and caching
+
+- PostgreSQL initialization scripts for users, posts, comments, categories, tags, user settings, sample data, AI settings, performance indexes, and media tables.
+- PostgreSQL full-text search index on post title/content.
+- Valkey is used for sessions and cache-related services.
 
 ## Tech Stack
 
-- **Web Framework**: Lapis (OpenResty/Nginx + LuaJIT)
-- **Database**: PostgreSQL 18 (full-text search, JSONB support)
-- **Session Store**: Valkey 9
-- **AI Integration**: Google Gemini API
-- **Test Framework**: Busted
-- **Static Analysis**: Luacheck
-- **Containerization**: Docker & Docker Compose
 - **Language**: Lua
+- **Runtime/Web server**: OpenResty + LuaJIT + Nginx
+- **Web framework**: Lapis
+- **Database**: PostgreSQL 18
+- **Session/cache store**: Valkey 9
+- **Templates**: ETV Lua templates for the admin UI and Lua/public rendering code
+- **AI integration**: Google Gemini API
+- **Testing**: Busted, shell-based E2E tests, integration tests
+- **Static analysis**: Luacheck
+- **Containerization**: Docker and Docker Compose
 
-### Why OpenResty + LuaJIT?
+## Project Structure
 
-OpenResty is a platform that integrates LuaJIT into Nginx, offering the following advantages:
-
-1. **Asynchronous I/O**: Event-driven architecture provides high performance even in high-concurrency environments
-2. **Low Memory Usage**: LuaJIT's JIT compiler is more memory-efficient than PHP and similar languages
-3. **Fast Response**: Lua code runs directly on Nginx's event loop, eliminating CGI/FastCGI overhead
-4. **C Extension Compatibility**: FFI (Foreign Function Interface) allows direct calls to C libraries
-
-## Directory Structure
-
-```
+```text
 LuaAIDiary/
-├── app/                        # Application code
-│   ├── init.lua               # Lapis application entry point
-│   ├── config/                # Configuration files
-│   ├── controllers/           # Controller layer
-│   ├── models/                # Model layer
-│   ├── views/                 # View layer (templates)
-│   ├── middleware/            # Middleware
-│   ├── theme_engine/          # Theme engine (experimental - pending)
-│   └── utils/                 # Utility functions
-├── tests/                     # Test code
-│   ├── test_helper.lua        # Test helper
-│   ├── test_database.lua      # Database tests
-│   └── test_health.lua        # Health check tests
-├── static/                    # Static files
-│   ├── css/
-│   ├── js/
-│   └── images/
-├── wp-content/                # WordPress-compatible content
-│   └── themes/                # Themes directory
-│       └── luaaidiary-default/  # Default theme
-├── docker/                    # Docker-related files
-│   └── web/
-│       ├── Dockerfile         # OpenResty + Lapis environment
-│       └── nginx.conf         # Nginx configuration
-├── postgresql/                # PostgreSQL-related
-│   └── init/
-│       └── 01_create_tables.sql  # Database initialization script
-├── Makefile                   # Development task automation
-├── .luacheckrc               # Luacheck configuration
-├── docker-compose.yml         # Docker Compose configuration
-├── .env.example              # Environment variable sample
-├── LICENSE                   # MIT License
-├── ARCHITECTURE.md           # Architecture design document
-└── DESIGN.md                 # Detailed design document
+├── app/
+│   ├── init.lua                 # Lapis application and routes
+│   ├── controllers/             # Public, API, admin, auth, media, Gemini controllers
+│   ├── models/                  # Database models
+│   ├── services/                # Auth, cache, Gemini services
+│   ├── middleware/              # Auth, CSRF, page cache middleware
+│   ├── theme_engine/            # Experimental/incomplete theme-related code
+│   ├── utils/                   # Crypto, Markdown, session, slug, validator utilities
+│   └── views/admin/             # Admin UI templates
+├── docker/web/                  # OpenResty image and Nginx configuration
+├── docs/                        # Feature and design documents
+├── postgresql/init/             # Initial database scripts
+├── postgresql/migrations/       # Additional migrations for existing databases
+├── static/                      # Admin CSS/JavaScript and static assets
+├── tests/                       # Unit, integration, E2E, performance, and related tests
+├── wp-content/themes/           # Experimental theme assets retained in the repo
+├── docker-compose.yml
+├── Makefile
+├── README.md
+└── README_JP.md
 ```
 
 ## Quick Start
@@ -105,427 +108,218 @@ LuaAIDiary/
 
 - Docker 20.10+
 - Docker Compose 2.0+
-- Make (optional, recommended)
+- Make, recommended for common development tasks
 
-### Initial Setup (Recommended)
-
-Automated setup using Makefile:
+### Recommended setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/hawkie275/LuaAIDiary.git
 cd LuaAIDiary
-
-# Initial setup (.env creation, GHCR image pull, startup)
 make setup
+```
 
-# Initial setup with local build (legacy behavior)
+`make setup` creates `.env` from `.env.example` if needed, pulls the latest web image from GHCR, synchronizes `APP_VERSION`, starts services, and waits briefly for the database.
+
+For a local image build instead of pulling from GHCR:
+
+```bash
 make setup-build
 ```
 
-This automatically executes:
-1. `.env` file creation
-2. Pull latest web image from registry (when using `make setup`)
-3. Service startup
-4. Database initialization
-
-### Manual Setup
-
-If not using Makefile:
+### Manual setup
 
 ```bash
-# 1. Create .env file
 cp .env.example .env
-
-# 2. Build Docker images and start services
 docker compose up -d --build
-
-# 3. Wait for database startup (about 10 seconds)
 sleep 10
 ```
 
-### Verification
+### Access URLs
 
-Access the following URL in your browser:
+- Public site: <http://localhost:8080>
+- Admin panel: <http://localhost:8080/admin>
+- Health check: <http://localhost:8080/health>
 
-```
-http://localhost:8080
-```
+Default admin user data is initialized by the PostgreSQL scripts. Check [`postgresql/init/01_create_tables.sql`](postgresql/init/01_create_tables.sql) and [`postgresql/init/02_update_admin_password.sql`](postgresql/init/02_update_admin_password.sql), then change the password after first login.
 
-Health check:
-```bash
-curl http://localhost:8080/health
-# or
-make health
-```
-
-## Development Commands (Makefile)
-
-The project includes a convenient Makefile:
+## Main Make Commands
 
 ```bash
-# Display help
-make help
+make help              # Show available commands
+make setup             # Initial setup using the GHCR web image
+make setup-build       # Initial setup with a local Docker build
+make dev               # Start services in the foreground
+make build             # Build Docker images without cache
+make up                # Start services in the background
+make down              # Stop services
+make restart           # Restart services
+make logs              # Follow all service logs
+make logs-web          # Follow web logs
+make logs-db           # Follow PostgreSQL logs
+make logs-redis        # Follow Valkey logs
+make shell             # Open a shell in the web container
+make shell-lua         # Start a Lua shell in the web container
+make shell-db          # Open a shell in the DB container
+make psql              # Open PostgreSQL client
+make redis-cli         # Open Valkey/Redis CLI
+make migrate           # Apply media-table migration to an existing DB
+make health            # Check /health
+make status            # Show Docker Compose service status
+make db-reset          # Reset database after confirmation
+make clean             # Remove containers and volumes after confirmation
+```
 
-# Start development server (foreground)
-make dev
+## Testing and Quality Checks
 
-# Start services (background)
+Services must be running for E2E and integration tests.
+
+```bash
 make up
-
-# Stop services
-make down
-
-# Restart services
-make restart
-
-# Display logs
-make logs          # All services
-make logs-web      # Web server only
-make logs-db       # Database only
-make logs-redis    # Redis only
-
-# Connect to shell
-make shell         # Web container
-make shell-db      # DB container
-make psql          # PostgreSQL client
-make redis-cli     # Redis client
-
-# Run tests
-make test          # E2E tests only
-
-# Reset database
-make db-reset
-
-# Static analysis
-make lint
-
-# Health check
 make health
-
-# Check service status
-make status
-
-# Cleanup (delete data)
-make clean
+make test              # Runs E2E tests through make test-e2e
+make test-e2e          # Runs post API and media API E2E scripts
+make test-integration  # Runs integration tests against the real DB
+make test-all          # Runs the configured E2E test target
+make test-file FILE=/tests/path/to/spec.lua
+make lint              # Run Luacheck for app/ and tests/
 ```
 
-## Admin Panel
+Notable test areas:
 
-### Access Method
-
-Access the admin panel at:
-
-```
-http://localhost:8080/admin
-```
-
-or
-
-```
-http://localhost:8080/admin/dashboard
-```
-
-### Default Login Credentials
-
-After initial setup, log in with the administrator account:
-
-- **Username**: `admin`
-- **Password**: Password set in the database initialization script
-  - Default can be checked in `postgresql/init/02_update_admin_password.sql`
-  - **For security, change the password immediately after first login**
-
-### Changing Password
-
-1. Log in to the admin panel
-2. Select "Change Password" from the user menu in the upper right
-3. Enter current password and new password
-
-Or access directly:
-
-```
-http://localhost:8080/admin/change-password
-```
-
-### Main Admin Features
-
-#### Dashboard (`/admin/dashboard`)
-- Site statistics display
-  - Post count (all statuses)
-  - Category count
-  - Tag count
-  - Comment count
-- Recent 5 posts
-- System information (Lua version, server time, DB connection status)
-
-#### Post Management (`/admin/posts`)
-- Post list display
-- Create new post
-- Edit post
-- Delete post
-- Status management (draft/published/trash)
-- Markdown preview
-- Category and tag assignment
-
-#### Category Management (`/admin/categories`)
-- Category list
-- Create, edit, delete categories
-- Hierarchical structure management
-
-#### Tag Management (`/admin/tags`)
-- Tag list
-- Create, edit, delete tags
-
-#### User Management (`/admin/users`)
-- User list
-- Create new user
-- Edit user information
-- Change roles (admin/editor/author/contributor/subscriber)
-- Delete user
-
-#### Site Settings (`/admin/settings`)
-- Site basic information
-- AI settings (Gemini API)
-- Theme settings
-
-#### Profile Management (`/admin/profile`)
-- View and edit your own profile
-- Change password
-
-## Gemini AI Features
-
-LuaAIDiary integrates with Google Gemini API to provide AI-powered article writing assistance.
-
-### Main Features
-
-#### 1. AI Article Generation
-
-Automatically generate complete articles from topics and keywords.
-
-**Features**:
-- Auto-generate titles and content
-- Suggest heading structure
-- SEO-conscious writing
-- Customizable word count and tone
-
-**Usage**:
-1. Click "AI Generate" button on post edit screen
-2. Enter topic and keywords
-3. Optionally specify target audience, word count, and tone
-4. Review and edit the generated article
-
-**API Endpoint**:
-```bash
-POST /api/gemini/generate-article
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-
-{
-  "topic": "LuaJIT Performance",
-  "keywords": "Lua, JIT, Performance",
-  "target_audience": "Developers",
-  "word_count": 2000,
-  "tone": "technical"
-}
-```
-
-#### 2. AI Proofreading
-
-Analyze existing articles and provide suggestions for improving grammar, expression, and structure.
-
-**Features**:
-- Grammar check
-- Expression improvement suggestions
-- Readability enhancement
-- Tone adjustment
-
-**Usage**:
-1. Enter content in post edit screen
-2. Click "AI Proofread" button
-3. Review improvement suggestions
-4. Apply necessary corrections
-
-**API Endpoint**:
-```bash
-POST /api/gemini/proofread
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-
-{
-  "content": "Article content to proofread...",
-  "tone": "formal"
-}
-```
-
-### Setting Up Gemini API Key
-
-To use AI features, each user must set up their individual Gemini API key.
-
-#### 1. Obtaining an API Key
-
-1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Log in with your Google account
-3. Click "Create API Key"
-4. Copy the generated API key
-
-#### 2. Configuring the API Key
-
-From admin panel:
-
-1. Access `/admin/settings`
-2. Select "AI Settings" tab
-3. Enter Gemini API key
-4. Click "Save"
-
-Via API:
-
-```bash
-POST /api/settings/gemini-api-key
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-
-{
-  "api_key": "YOUR_GEMINI_API_KEY"
-}
-```
-
-#### 3. Security
-
-- API keys are encrypted with AES-256-CBC before storing in database
-- Each user manages their individual API key
-- Master encryption key managed via environment variable (`ENCRYPTION_KEY`)
-- Only the owner can view and update their API key
-
-### Customizing AI Settings
-
-You can adjust the quality and style of generated articles by customizing prompt templates.
-
-**Configuration Options**:
-- **Model Selection**: `gemini-2.5-flash`, `gemini-1.5-pro`, etc.
-- **Article Generation Prompt**: Prompt template for article generation
-- **Proofreading Prompt**: Prompt template for proofreading
-- **Default Target Audience**: Target audience for articles
-- **Default Tone**: formal, casual, technical, etc.
-
-### API Connection Test
-
-Test if your API key is configured correctly:
-
-```bash
-POST /api/gemini/test-connection
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-```
-
-Success response:
-```json
-{
-  "success": true,
-  "data": {
-    "success": true,
-    "message": "API connection successful",
-    "response": "Connection successful"
-  }
-}
-```
+- [`tests/e2e`](tests/e2e): HTTP-based E2E tests for posts, media, auth/admin flows, categories/tags, password change, and user management.
+- [`tests/controllers`](tests/controllers): controller specs.
+- [`tests/models`](tests/models): model specs.
+- [`tests/middleware`](tests/middleware): CSRF middleware specs.
+- [`tests/theme_engine`](tests/theme_engine): tests for experimental theme-related code retained in the repository.
+- [`tests/integration`](tests/integration): real database integration tests.
+- [`tests/performance`](tests/performance): benchmark scripts and reports.
 
 ## Available Endpoints
 
 ### Public Endpoints
 
-| Endpoint | Description | Response |
-|----------|-------------|----------|
-| `GET /` | Homepage (post list) | HTML |
-| `GET /:slug` | Single post | HTML |
-| `GET /category/:slug` | Category archive | HTML |
-| `GET /tag/:slug` | Tag archive | HTML |
-| `GET /author/:username` | Author archive | HTML |
-| `GET /search` | Search results | HTML |
-| `GET /health` | Health check | JSON |
-| `GET /api/db-test` | PostgreSQL connection test | JSON |
-| `GET /api/redis-test` | Redis connection test | JSON |
+| Route | Purpose |
+| --- | --- |
+| `/` | Home/post list |
+| `/posts/:slug` | Single post |
+| `/category/:slug` | Category archive |
+| `/tag/:slug` | Tag archive |
+| `/author/:username` | Author archive |
+| `/search` | Search results |
+| `/:year`, `/:year/:month`, `/:year/:month/:day` | Date archives |
 
 ### Authentication API Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/api/auth/register` | POST | User registration | No |
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/auth/register` | POST | Register a user | No |
 | `/api/auth/login` | POST | Login | No |
 | `/api/auth/logout` | POST | Logout | Yes |
-| `/api/auth/me` | GET | Get current user info | Yes |
+| `/api/auth/me` | GET | Get current user | Yes |
 | `/api/auth/change-password` | POST | Change password | Yes |
-| `/api/auth/check` | GET | Check auth status | Optional |
+| `/api/auth/check` | GET | Check authentication status | Optional |
+| `/api/csrf-token` | GET | Get CSRF token | Session-based |
 
 ### Post API Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/api/posts` | GET | Get post list | Optional |
-| `/api/posts` | POST | Create post | Yes (author+) |
-| `/api/posts/:id` | GET | Get post details | Optional |
-| `/api/posts/:id` | PUT | Update post | Yes (owner) |
-| `/api/posts/:id` | DELETE | Delete post | Yes (owner) |
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/posts` | GET | List posts | Optional |
+| `/api/posts` | POST | Create post | Yes |
+| `/api/posts/:id` | GET | Get post detail | Optional, draft restricted |
+| `/api/posts/:id` | PUT | Update post | Owner |
+| `/api/posts/:id` | DELETE | Delete post | Owner |
 
 ### Category API Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/api/categories` | GET | Get category list | No |
-| `/api/categories` | POST | Create category | Yes (editor+) |
-| `/api/categories/:id` | GET | Get category details | No |
-| `/api/categories/:id` | PUT | Update category | Yes (editor+) |
-| `/api/categories/:id` | DELETE | Delete category | Yes (editor+) |
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/categories` | GET | List categories | No |
+| `/api/categories` | POST | Create category | Editor or admin |
+| `/api/categories/:id` | GET | Get category detail | No |
+| `/api/categories/:id` | PUT | Update category | Editor or admin |
+| `/api/categories/:id` | DELETE | Delete category | Editor or admin |
 
 ### Tag API Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/api/tags` | GET | Get tag list | No |
-| `/api/tags` | POST | Create tag | Yes (author+) |
-| `/api/tags/:id` | GET | Get tag details | No |
-| `/api/tags/:id` | PUT | Update tag | Yes (editor+) |
-| `/api/tags/:id` | DELETE | Delete tag | Yes (editor+) |
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/tags` | GET | List tags | No |
+| `/api/tags` | POST | Create tag | Author or higher |
+| `/api/tags/:id` | GET | Get tag detail | No |
+| `/api/tags/:id` | PUT | Update tag | Editor or admin |
+| `/api/tags/:id` | DELETE | Delete tag | Editor or admin |
+
+### Media API Endpoints
+
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/media` | GET | List uploaded images with pagination/search | Editor or admin |
+| `/api/media` | POST | Upload image with multipart form-data | Editor or admin + CSRF |
+| `/api/media/:id` | GET | Get image metadata | Editor or admin |
+| `/api/media/:id` | PATCH | Rename image/update alt text | Editor or admin + CSRF |
+| `/api/media/:id` | DELETE | Logically delete unused image | Editor or admin + CSRF |
+
+Supported image formats are `jpg`, `jpeg`, `png`, `webp`, and `gif`. Media metadata is stored in PostgreSQL, while file data is stored locally under `/app/uploads` via the `media_uploads` Docker volume.
+
+Current media API behavior:
+
+- Upload request field: multipart `file` is required; `alt_text` is optional.
+- New uploads return `201` with `success`, `id`, `file_name`, `url`, `thumbnail_url`, `mime_type`, `size_bytes`, `width`, `height`, `alt_text`, `usage_count`, `in_use`, and `deduplicated`.
+- Duplicate uploads are detected by SHA-256 and return the existing active media with `200` and `deduplicated: true`.
+- `GET /api/media` accepts `page`, `per_page`, and `q` query parameters.
+- `PATCH /api/media/:id` requires `file_name`; `alt_text` can also be updated.
+- `DELETE /api/media/:id` returns `409` if the media is currently referenced by a post.
+- Upload validation returns `413` for files over the current 10 MB limit and `415` for unsupported extension/MIME mismatches.
 
 ### Admin Panel Endpoints
 
-| Endpoint | Description | Permission |
-|----------|-------------|------------|
-| `GET /admin` | Admin top (redirect to dashboard) | editor+ |
-| `GET /admin/dashboard` | Dashboard | editor+ |
-| `GET /admin/posts` | Post list | editor+ |
-| `GET /admin/posts/new` | New post form | author+ |
-| `GET /admin/posts/:id/edit` | Edit post form | owner |
-| `GET /admin/categories` | Category management | editor+ |
-| `GET /admin/tags` | Tag management | editor+ |
-| `GET /admin/users` | User management | admin |
-| `GET /admin/settings` | Site settings | admin |
-| `GET /admin/profile` | Profile display | all users |
-| `GET /admin/login` | Login form | none |
-| `GET /admin/change-password` | Password change form | required |
+| Route | Purpose |
+| --- | --- |
+| `/admin/login` | Login screen |
+| `/admin` | Redirect to dashboard |
+| `/admin/dashboard` | Dashboard |
+| `/admin/posts` | Post management |
+| `/admin/posts/new` | New post form |
+| `/admin/posts/:id/edit` | Edit post form |
+| `/admin/categories` | Category management |
+| `/admin/tags` | Tag management |
+| `/admin/media` | Media library |
+| `/admin/users` | User management |
+| `/admin/users/new` | New user form |
+| `/admin/users/:id/edit` | Edit user form |
+| `/admin/profile` | User profile |
+| `/admin/profile/edit` | Edit current profile |
+| `/admin/settings` | Site and AI settings |
+| `/admin/change-password` | Password change |
 
 ### Gemini AI API Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/api/gemini/generate-article` | POST | AI article generation | Yes |
-| `/api/gemini/proofread` | POST | AI proofreading | Yes |
-| `/api/gemini/test-connection` | POST | API connection test | Yes |
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/gemini/generate-article` | POST | Generate article content | Yes + CSRF |
+| `/api/gemini/proofread` | POST | Proofread/improve article content | Yes + CSRF |
+| `/api/gemini/test-connection` | POST | Test Gemini API connection | Yes + CSRF |
 
 ### AI Settings API Endpoints
 
-| Endpoint | Method | Description | Auth Required |
-|----------|--------|-------------|---------------|
-| `/api/settings/ai-preferences` | GET | Get AI settings | Yes |
-| `/api/settings/ai-preferences` | PUT | Update AI settings | Yes |
-| `/api/settings/gemini-api-key` | POST | Save API key | Yes |
-| `/api/settings/gemini-api-key` | DELETE | Delete API key | Yes |
+| Endpoint | Method | Description | Auth |
+| --- | --- | --- | --- |
+| `/api/settings/ai-preferences` | GET | Get current AI preferences | Yes |
+| `/api/settings/ai-preferences/defaults` | GET | Get default AI preferences | Yes |
+| `/api/settings/ai-preferences` | PUT | Update AI preferences | Yes + CSRF |
+| `/api/settings/gemini-api-key` | POST | Save Gemini API key | Yes + CSRF |
+| `/api/settings/gemini-api-key` | DELETE | Delete Gemini API key | Yes + CSRF |
 
 ### Other Endpoints
 
 | Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/csrf-token` | GET | Get CSRF token |
-| `/api/preview/markdown` | POST | Markdown preview |
+| --- | --- | --- |
+| `/health` | GET | Health check |
+| `/api/db-test` | GET | PostgreSQL connection test |
+| `/api/redis-test` | GET | Valkey connection test |
+| `/api/models-test` | GET | Model loading check |
+| `/api/preview/markdown` | POST | Markdown preview for admin editor |
 
 ### Example: Health Check
 
@@ -533,13 +327,14 @@ Success response:
 curl http://localhost:8080/health
 ```
 
-Response example:
+Example response:
+
 ```json
 {
   "status": "ok",
   "service": "LuaAIDiary",
-  "timestamp": 1703500000,
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "timestamp": 1760000000
 }
 ```
 
@@ -549,369 +344,203 @@ Response example:
 curl http://localhost:8080/api/db-test
 ```
 
-Response example:
+Example response:
+
 ```json
 {
   "status": "success",
-  "message": "Database connection successful",
-  "postgres_version": "PostgreSQL 15.x",
-  "host": "db",
-  "database": "luaaidiary"
+  "message": "データベース接続成功",
+  "postgres_version": "PostgreSQL ...",
+  "database": "luaaidiary",
+  "host": "db"
 }
 ```
 
-## Running Tests
+## Database Notes
 
-### Run all tests
-
-```bash
-make test
-```
-
-or
+Fresh containers run all scripts in [`postgresql/init`](postgresql/init). Existing databases can apply the media table migration with:
 
 ```bash
-docker compose exec web busted tests/
+make migrate
 ```
 
-### Run specific test files
+Media upload metadata is created by [`postgresql/init/06_add_media_tables.sql`](postgresql/init/06_add_media_tables.sql), and the equivalent existing-DB migration is [`postgresql/migrations/001_add_media_tables.sql`](postgresql/migrations/001_add_media_tables.sql).
 
-```bash
-make test-file FILE=tests/test_database.lua
-```
+### Main Tables
 
-### Test Contents
-
-- **test_database.lua**: Database connection and schema tests
-- **test_health.lua**: Health check endpoint tests
-
-## Database Schema
-
-The following tables are automatically created:
-
-- **users** - User information (authentication, permission management)
-- **posts** - Posts (article content, status)
-- **comments** - Comments (thread support)
-- **categories** - Categories (hierarchical structure support)
-- **tags** - Tags
-- **post_categories** - Many-to-many relationship between posts and categories
-- **post_tags** - Many-to-many relationship between posts and tags
-- **user_settings** - User settings (Gemini API key, etc.)
-- **post_meta** - Post metadata (custom fields)
-
-For detailed schema definitions, refer to [`postgresql/init/01_create_tables.sql`](postgresql/init/01_create_tables.sql).
+- `users`: user accounts and roles.
+- `posts`: blog posts with `draft`, `published`, and `trash` statuses.
+- `comments`: comment data and moderation status.
+- `categories`, `tags`: taxonomy data.
+- `post_categories`, `post_tags`: post-taxonomy relationships.
+- `user_settings`: AI preferences and Gemini API key storage.
+- `post_meta`: custom post metadata.
+- `media`: uploaded image metadata.
+- `media_post_usages`: relationships between posts and referenced media, synchronized from `/uploads/...` URLs in post content.
 
 ## Development Workflow
 
 ### Hot Reload
 
-Files in the `app/` directory are mounted between the host machine and container, so changes are immediately reflected upon editing.
+In development, application files are mounted into the web container through the Docker image/build context and OpenResty/Lapis reflects changes after reload/restart as needed. Use `make dev` for foreground development and `make restart` when a container restart is required.
 
-### Code Static Analysis
+### Static Analysis
 
 ```bash
 make lint
 ```
 
-Uses Luacheck to check code quality. Configuration is managed in `.luacheckrc`.
+Luacheck runs against [`app`](app) and [`tests`](tests).
 
 ### Database Reset
-
-Reset the database to a clean state during development:
 
 ```bash
 make db-reset
 ```
 
+This command asks for confirmation and recreates the database using the initialization scripts. It deletes existing application data.
+
 ### Log Monitoring
 
-Monitoring logs during development is convenient:
-
 ```bash
+make logs
 make logs-web
+make logs-db
+make logs-redis
 ```
 
 ## Security
 
 ### Important Settings for Production
 
-**⚠️ You must change the following settings in production:**
+Before production use, review at least the following:
 
-1. **Change Database Password**
-   ```bash
-   # Change to strong password in .env file
-   POSTGRES_PASSWORD=strong_random_password
-   ```
-
-2. **Generate Encryption Key**
-   ```bash
-   # Generate a secure 32-byte key
-   openssl rand -hex 32
-   
-   # Set in .env file
-   ENCRYPTION_KEY=generated_key
-   ```
-
-3. **Change Admin Password**
-   - Change immediately after first login
-   - Can be changed from `/admin/change-password`
-
-4. **Environment Variable Management**
-   - **Never commit `.env` file to Git**
-   - Verify `.env` is included in `.gitignore`
-   - Manage environment variables securely in production (AWS Secrets Manager, Hashicorp Vault, etc.)
-
-5. **Use HTTPS**
-   - Always configure HTTPS/TLS in production
-   - Free SSL certificates available through Let's Encrypt
+- Change default administrator credentials.
+- Set strong `POSTGRES_PASSWORD` and application secrets in `.env`.
+- Set and protect the encryption key used for Gemini API key storage.
+- Restrict exposed database/cache ports if they are not needed externally.
+- Use HTTPS through a reverse proxy or load balancer.
+- Review upload size limits and accepted MIME types for media upload.
 
 ### Implemented Security Features
 
 #### Password Security
-- **bcrypt**: 12 rounds of hashing
-- **Salt**: Auto-generated
-- **Minimum length**: 8 characters
+
+- Password hashing is handled by the authentication service.
+- Password change is available through both API and admin UI.
 
 #### Session Management
-- **Storage**: Valkey (in-memory)
-- **Expiration**: 7 days
-- **Cookie settings**:
-  - `HttpOnly`: Not accessible from JavaScript
-  - `SameSite=Lax`: Mitigates CSRF attacks
-  - `Secure`: HTTPS only in production (requires configuration)
+
+- Session data is stored in Valkey.
+- Authentication state is checked by controllers and middleware.
 
 #### CSRF Protection
-- CSRF token verification for all mutation operations
-- Tokens are 32-byte random strings
-- Generated per session
+
+- CSRF tokens are generated and verified for state-changing requests.
+- The token can be retrieved from `/api/csrf-token` for API usage.
 
 #### API Key Encryption
-- **Encryption method**: AES-256-CBC
-- **Master key**: Managed via environment variable
-- **Access control**: Only owner can view
 
-#### Role-Based Access Control (RBAC)
-- **admin**: All operations allowed
-- **editor**: Content management and publishing
-- **author**: Manage own articles
-- **contributor**: Create article drafts
-- **subscriber**: View only
+- Gemini API key storage is handled via the user settings model and crypto utilities.
+- Each user manages their own Gemini API key.
+
+#### Role-Based Access Control
+
+- Admin dashboard and media library require `admin` or `editor`.
+- User management is limited to `admin`.
+- Post/category/tag APIs and admin actions apply role and ownership checks.
 
 #### Input Validation
-- All input data validated server-side
-- SQL injection protection (parameterized queries)
-- XSS protection (output escaping)
+
+- Controllers validate required fields, IDs, status values, and media constraints.
+- Media upload validates extension/MIME compatibility and size constraints.
 
 ## Environment Variables
 
-Environment variables configurable in `.env` file:
+Create `.env` from [`.env.example`](.env.example). Key variables include:
 
-```bash
-# PostgreSQL settings
-POSTGRES_PASSWORD=change_this_secure_password
-POSTGRES_DB=luaaidiary
-POSTGRES_USER=luaaidiary
+| Variable | Purpose |
+| --- | --- |
+| `POSTGRES_DB` | PostgreSQL database name |
+| `POSTGRES_USER` | PostgreSQL user |
+| `POSTGRES_PASSWORD` | PostgreSQL password |
+| `IMAGE_TAG` | Web image tag used by Docker Compose/GHCR workflow |
+| `APP_VERSION` | Application version displayed in admin system info |
+| `ENCRYPTION_KEY` | Key material for encrypted secret storage, when configured |
 
-# Valkey settings
-REDIS_HOST=valkey
-REDIS_PORT=6379
-
-# Lapis settings
-LAPIS_ENVIRONMENT=development
-
-# Encryption settings (must change!)
-ENCRYPTION_KEY=change_this_to_a_secure_32_byte_key_in_production
-
-# Gemini API settings (optional)
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-For details, refer to [`.env.example`](.env.example).
+Runtime container variables such as `POSTGRES_HOST`, `POSTGRES_PORT`, `REDIS_HOST`, `REDIS_PORT`, and `LAPIS_ENVIRONMENT` are provided by [`docker-compose.yml`](docker-compose.yml).
 
 ## Troubleshooting
 
 ### Services Won't Start
 
 ```bash
-# Check service status
 make status
-
-# Check logs
 make logs
-
-# Complete cleanup and re-setup
-make clean
-make setup
 ```
+
+Check whether Docker is running, `.env` exists, and required ports are available.
 
 ### Ports Already in Use
 
-If ports 8080, 5432, or 6379 are already in use, change the port settings in `docker-compose.yml`.
+The default service ports are:
+
+- Web: `8080`
+- PostgreSQL: `5432`
+- Valkey: `6379`
+
+Change port mappings in [`docker-compose.yml`](docker-compose.yml) if another process already uses them.
 
 ### Database Connection Error
 
 ```bash
-# Check database container status
-docker compose ps db
-
-# Check database logs
 make logs-db
-
-# Reset database
-make db-reset
+make psql
+curl http://localhost:8080/api/db-test
 ```
+
+Verify `POSTGRES_*` values in `.env` and confirm that the `db` service is healthy.
 
 ### Tests Fail
 
 ```bash
-# Verify services started normally
+make up
 make health
-
-# Database connection test
-curl http://localhost:8080/api/db-test
-
-# Redis connection test
-curl http://localhost:8080/api/redis-test
+make test-e2e
 ```
+
+E2E tests require the application to be running at the expected base URL. Some scripts also create temporary users or content.
+
+### Media Upload Fails
+
+- Confirm that the file is one of `jpg`, `jpeg`, `png`, `webp`, or `gif`.
+- Confirm that the file size is within the configured upload limit.
+- Check web logs with `make logs-web`.
+- For existing databases, confirm that `make migrate` has been applied.
+- If deletion fails with `409`, remove the image reference from posts first so usage synchronization can clear it.
 
 ### Container Build Error
 
 ```bash
-# Rebuild without cache
 make build
+make logs-web
 ```
 
-## Project Structure Details
+If using the registry image path, run `make setup`. If developing local Docker changes, run `make setup-build`.
 
-### `/app` - Application Code
+## Related Documentation
 
-- **init.lua**: Main entry point of Lapis application
-- **config/**: Configuration such as database connections
-- **controllers/**: Request handlers
-- **models/**: Data models
-- **middleware/**: Middleware for authentication, CSRF protection, etc.
-- **utils/**: Helper functions, validation, etc.
-- **theme_engine/**: WordPress-compatible theme engine (experimental - pending)
-
-### `/tests` - Test Code
-
-- **test_helper.lua**: Test helper functions
-- **test_database.lua**: Database connection and schema tests
-- **test_health.lua**: Endpoint tests
-
-### `/docker` - Docker-Related
-
-- **web/Dockerfile**: OpenResty + Lapis + various Lua libraries
-- **web/nginx.conf**: Nginx configuration (Lapis compatible)
-
-## Future Implementation Plans
-
-### Phase 1: Core System ✅ Completed
-- ✅ User authentication & authorization system (bcrypt)
-- ✅ Post CRUD functionality
-- ✅ Session management (Valkey)
-- ✅ CSRF protection
-
-### Phase 2: Theme Compatibility Layer (Lower Priority)
-- [ ] WordPress theme loader
-- [ ] WordPress function emulation
-- [ ] Template engine integration
-
-### Phase 3: Gemini Integration ✅ Completed
-- ✅ Gemini API integration
-- ✅ Article structure suggestion feature
-- ✅ API key encryption management
-- ✅ AI proofreading feature
-
-### Phase 4: Admin Panel ✅ Completed
-- ✅ Dashboard
-- ✅ Post management screen
-- ✅ Category and tag management
-- ✅ User management
-- ✅ Site settings
-
-### Phase 5: Future Enhancements (Under Consideration)
-
-#### Content Features
-- [ ] Rich text editor (WYSIWYG)
-- [ ] Media upload and management
-- [ ] Image optimization
-- [ ] Post version control
-- [ ] Post duplication feature
-- [ ] Bulk operations (delete multiple posts, etc.)
-
-#### AI Feature Enhancements
-- [ ] Article SEO analysis
-- [ ] Automatic tagging
-- [ ] Related post suggestions
-- [ ] Image generation (Imagen integration)
-- [ ] Multi-language translation
-
-#### User Features
-- [ ] Two-factor authentication (2FA)
-- [ ] Password reset (via email)
-- [ ] OAuth integration (Google/GitHub, etc.)
-- [ ] Login history
-- [ ] Session management screen
-
-#### Performance
-- [ ] Page caching mechanism
-- [ ] CDN integration
-- [ ] Image lazy loading
-- [ ] HTTP/2 Server Push
-
-#### Plugin System
-- [ ] Plugin architecture
-- [ ] Hooks/filters system
-- [ ] Plugin marketplace
-
-#### Monitoring & Analytics
-- [ ] Access analytics
-- [ ] Error tracking (Sentry integration)
-- [ ] Performance monitoring (Prometheus + Grafana)
-
-For detailed implementation plans, refer to [DESIGN.md](DESIGN.md).
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): architecture overview.
+- [`DESIGN.md`](DESIGN.md): detailed design notes.
+- [`README_ADMIN.md`](README_ADMIN.md): admin dashboard implementation notes.
+- [`README_AUTH.md`](README_AUTH.md): authentication system documentation.
+- [`README_POST_API.md`](README_POST_API.md): post API documentation.
+- [`docs/media_upload_feature_spec.md`](docs/media_upload_feature_spec.md): media upload feature specification.
+- [`docs/media_upload_design.md`](docs/media_upload_design.md): media upload implementation design.
+- [`tests/e2e/README.md`](tests/e2e/README.md): E2E testing guide.
+- [`tests/integration/README.md`](tests/integration/README.md): integration testing guide.
+- [`tests/performance/README.md`](tests/performance/README.md): performance testing guide.
 
 ## License
 
-This project is released under the [MIT License](LICENSE).
-
-### Why MIT License
-
-1. **High Freedom** - Free for commercial use, modification, and redistribution
-2. **Simple** - Short and easy-to-understand license text
-3. **Widely Adopted** - Most popular in the open-source community
-4. **Compatibility** - Easy to combine with other libraries
-
-The MIT License allows you to freely use, copy, modify, merge, publish, distribute, sublicense, and sell this software.
-
-## References
-
-- [OpenResty Official Documentation](https://openresty.org/)
-- [Lapis Official Documentation](https://leafo.net/lapis/)
-- [Lua Official Site](https://www.lua.org/)
-- [PostgreSQL Official Documentation](https://www.postgresql.org/docs/current/)
-- [Valkey Official Documentation](https://valkey.io/)
-- [Busted Official Documentation](https://lunarmodules.github.io/busted/)
-- [Docker Official Documentation](https://docs.docker.com/)
-
-## Documentation
-
-### Architecture & Design
-- [ARCHITECTURE.md](ARCHITECTURE.md) - System Architecture
-- [DESIGN.md](DESIGN.md) - Detailed Design Document
-
-### Feature-Specific Documentation
-- [README_ADMIN.md](README_ADMIN.md) - Admin Panel Features
-- [README_AUTH.md](README_AUTH.md) - Authentication System
-- [README_POST_API.md](README_POST_API.md) - Post API Specification
-- [README_THEME_ENGINE.md](README_THEME_ENGINE.md) - Theme Engine
-
-### Testing
-- [tests/README.md](tests/README.md) - Test Execution Methods
-- [tests/e2e/README.md](tests/e2e/README.md) - E2E Tests
-- [tests/integration/README.md](tests/integration/README.md) - Integration Tests
-
-## Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+MIT License. See [`LICENSE`](LICENSE).

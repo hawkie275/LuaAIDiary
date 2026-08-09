@@ -1,97 +1,105 @@
 # LuaAIDiary
 
-LuaベースのWordPressライクなブログシステム
+Lua/OpenResty ベースの WordPress ライクなブログシステムです。管理画面、JSON API、Gemini による記事作成支援、ローカル画像メディア管理を備えています。
+
+英語版は [`README.md`](README.md) を参照してください。
 
 ## 概要
 
-LuaAIDiaryは、OpenResty（Nginx + LuaJIT）、Lapis、PostgreSQL、Valkeyを使用した高性能なブログシステムです。Docker Composeを使用して簡単にセットアップでき、テスト実行しながら開発できる環境を提供します。
+LuaAIDiary は OpenResty、LuaJIT、Lapis、PostgreSQL、Valkey で構成されたブログ/CMS アプリケーションです。WordPress 風の公開 URL、認証付き管理画面、投稿・カテゴリー・タグ・メディア・認証用 API、Docker Compose ベースのローカル開発環境を提供します。
 
-## 主な特徴
+現在の実装には、管理画面でのコンテンツ管理、認証/権限管理、Gemini AI 連携、PostgreSQL メタデータと Docker ボリュームを利用する Phase 1 のローカル画像アップロード機能が含まれます。
 
-- **超高速動作**: OpenResty + LuaJIT による非同期I/O処理で、従来のPHP製CMSと比較して数倍のパフォーマンスを実現
-- **AI記事生成**: Gemini API統合により、トピックから完全な記事を自動生成
-- **AI校正機能**: 文法・表現・構成を自動改善
-- **完全な管理画面**: WordPress風のダッシュボードで直感的なコンテンツ管理
-- **軽量**: LuaJIT による高速なスクリプト実行
-- **ロールベースアクセス制御**: 5段階の権限管理（admin/editor/author/contributor/subscriber）
-- **全文検索**: PostgreSQL GINインデックスによる高速検索
-- **テスト環境**: Busted による自動テスト対応
-- **開発ツール**: Makefile、Luacheck による開発効率化
-- **スケーラブル**: Valkey、PostgreSQL による水平スケーリング対応
-- **ホットリロード**: コード変更時の自動反映
-- **セキュア**: bcrypt、CSRF保護、暗号化APIキー管理
+## 実装済み機能
 
-## ⚡ パフォーマンス
+### 公開ブログフロントエンド
 
-LuaAIDiary は高性能CMSとして設計されています。以下は**ローカル環境でのベンチマーク結果**（参考値）です：
+- ホーム、単一投稿、カテゴリーアーカイブ、タグアーカイブ、著者アーカイブ、日付アーカイブ、検索結果、404 表示。
+- `/`, `/posts/:slug`, `/category/:slug`, `/tag/:slug`, `/author/:username`, `/search`, 日付アーカイブなどの WordPress 風ルーティング。
+- [`app/init.lua`](app/init.lua) で接続されている公開表示用コントローラー経路による基本表示。
 
-- **スループット**: 70,405 req/sec
-- **レイテンシ**: 2.83ms（平均）
+### 管理画面
 
-*ローカルベンチマーク環境: AMD Ryzen 7 6800HS (8C/16T), 7.8GB RAM, Ubuntu 24.04 LTS (WSL2)*
+- ログイン/ログアウト、パスワード変更画面。
+- サイト統計、最近の投稿、システム情報を表示するダッシュボード。
+- 投稿一覧・作成・編集・削除、draft/published/trash のステータス管理、カテゴリー/タグ設定、Markdown プレビュー、メディアピッカー連携。
+- カテゴリー管理、タグ管理。
+- 管理者向けユーザー管理、認証済みユーザー向けプロフィール編集。
+- サイト設定、AI 設定、Gemini API キー管理。
+- 画像アップロード、検索、名称変更、削除、利用状態表示を行うメディアライブラリ。
 
-**⚠️ 注意**: これらは隔離された環境での合成ベンチマークによる参考値です。本番環境でのパフォーマンスは以下の要因により大きく異なります：
-- ネットワークレイテンシと帯域幅
-- データベースサイズとクエリの複雑性
-- 同時アクセスパターンとトラフィックの急増
-- インフラ構成（CDN、ロードバランサーなど）
-- セキュリティ層やサードパーティ統合
+### API
 
-📊 **詳細なパフォーマンスレポート**: [`tests/performance/results/performance_improvement_report.md`](tests/performance/results/performance_improvement_report.md)
+- 認証 API: 登録、ログイン、ログアウト、現在ユーザー取得、パスワード変更、認証状態確認。
+- 更新系リクエスト向け CSRF トークン API。
+- 投稿 CRUD API、カテゴリー/タグ設定、所有者チェック。
+- ロール権限付きのカテゴリー/タグ CRUD API。
+- 画像アップロード、一覧、詳細、名称変更、論理削除を行うメディア API。
+- Markdown プレビュー API。
+- Gemini による記事生成、校正、接続テスト API。
+- AI 設定 API と暗号化 Gemini API キー保存。
+
+### 認証とセキュリティ
+
+- Valkey を利用したセッションベース認証。
+- `admin`, `editor`, `author`, `subscriber` ロールによるアクセス制御。
+- 更新系 API と管理画面フォーム向け CSRF 保護。
+- 認証サービスによるパスワードハッシュ化。
+- ユーザー設定モデルによる Gemini API キーの暗号化保存対応。
+
+### メディアアップロード
+
+- `jpg`, `jpeg`, `png`, `webp`, `gif` のローカル画像アップロード。
+- 管理画面メディアライブラリと投稿編集画面のメディアピッカー。
+- `media` と `media_post_usages` テーブルによるメタデータ管理。
+- SHA-256 による重複検知と既存アクティブメディアの再利用。
+- `vips`/`vipsheader` が利用できる場合のサムネイル生成と、生成失敗時の原本 URL フォールバック。
+- 投稿から参照中のメディア削除を防ぐ論理削除。投稿作成/更新時に `/uploads/...` 参照を `media_post_usages` へ同期。
+- アップロードファイルは `/app/uploads` にマウントされた `media_uploads` Docker ボリュームに保存。
+
+### データベースとキャッシュ
+
+- ユーザー、投稿、コメント、カテゴリー、タグ、ユーザー設定、サンプルデータ、AI 設定、性能向上インデックス、メディアテーブル用の PostgreSQL 初期化スクリプト。
+- 投稿タイトル/本文向け PostgreSQL 全文検索インデックス。
+- セッションおよびキャッシュ関連サービスで Valkey を利用。
 
 ## 技術スタック
 
-- **Webフレームワーク**: Lapis (OpenResty/Nginx + LuaJIT)
-- **データベース**: PostgreSQL 18（全文検索、JSONB対応）
-- **セッションストア**: Valkey 9
-- **AI統合**: Google Gemini API
-- **テストフレームワーク**: Busted
-- **静的解析**: Luacheck
-- **コンテナ化**: Docker & Docker Compose
 - **言語**: Lua
+- **ランタイム/Web サーバー**: OpenResty + LuaJIT + Nginx
+- **Web フレームワーク**: Lapis
+- **データベース**: PostgreSQL 18
+- **セッション/キャッシュストア**: Valkey 9
+- **テンプレート**: 管理画面は ETV Lua テンプレート、公開画面は Lua/公開表示用コード
+- **AI 統合**: Google Gemini API
+- **テスト**: Busted、シェルベース E2E テスト、統合テスト
+- **静的解析**: Luacheck
+- **コンテナ**: Docker、Docker Compose
 
-### なぜ OpenResty + LuaJIT なのか？
+## プロジェクト構成
 
-OpenResty は Nginx に LuaJIT を統合したプラットフォームで、以下の利点があります：
-
-1. **非同期I/O**: イベント駆動型アーキテクチャにより、同時接続数が多い環境でも高パフォーマンス
-2. **低メモリ使用量**: LuaJIT のJITコンパイラにより、PHP等と比較してメモリ効率が高い
-3. **高速レスポンス**: Nginxのイベントループ上で直接Luaコードが実行されるため、CGI/FastCGIのオーバーヘッドなし
-4. **C拡張との親和性**: FFI（Foreign Function Interface）により、C言語ライブラリを直接呼び出し可能
-
-## ディレクトリ構造
-
-```
+```text
 LuaAIDiary/
-├── app/                        # アプリケーションコード
-│   ├── init.lua               # Lapisアプリケーションエントリーポイント
-│   ├── config/                # 設定ファイル
-│   ├── controllers/           # コントローラー層
-│   ├── models/                # モデル層
-│   ├── views/                 # ビュー層（テンプレート）
-│   ├── middleware/            # ミドルウェア
-│   └── utils/                 # ユーティリティ関数
-├── tests/                     # テストコード
-│   ├── test_helper.lua        # テストヘルパー
-│   ├── test_database.lua      # データベーステスト
-│   └── test_health.lua        # ヘルスチェックテスト
-├── static/                    # 静的ファイル
-│   ├── css/
-│   ├── js/
-│   └── images/
-├── docker/                    # Docker関連ファイル
-│   └── web/
-│       ├── Dockerfile         # OpenResty + Lapis環境
-│       └── nginx.conf         # Nginx設定
-├── postgresql/                # PostgreSQL関連
-│   └── init/
-│       └── 01_create_tables.sql  # データベース初期化スクリプト
-├── Makefile                   # 開発タスク自動化
-├── .luacheckrc               # Luacheck設定
-├── docker-compose.yml         # Docker Compose設定
-├── .env.example              # 環境変数のサンプル
-├── ARCHITECTURE.md           # アーキテクチャ設計書
-└── DESIGN.md                 # 詳細設計書
+├── app/
+│   ├── init.lua                 # Lapis アプリケーションとルーティング
+│   ├── controllers/             # 公開/API/管理/認証/メディア/Gemini コントローラー
+│   ├── models/                  # DB モデル
+│   ├── services/                # 認証、キャッシュ、Gemini サービス
+│   ├── middleware/              # 認証、CSRF、ページキャッシュミドルウェア
+│   ├── theme_engine/            # 実験的/未完成のテーマ関連コード
+│   ├── utils/                   # 暗号化、Markdown、セッション、slug、バリデーション
+│   └── views/admin/             # 管理画面テンプレート
+├── docker/web/                  # OpenResty イメージと Nginx 設定
+├── docs/                        # 機能仕様・設計ドキュメント
+├── postgresql/init/             # DB 初期化スクリプト
+├── postgresql/migrations/       # 既存 DB 向け追加マイグレーション
+├── static/                      # 管理画面 CSS/JavaScript と静的アセット
+├── tests/                       # ユニット、統合、E2E、性能、関連テスト
+├── wp-content/themes/           # リポジトリに残っている実験的テーマアセット
+├── docker-compose.yml
+├── Makefile
+├── README.md
+└── README_JP.md
 ```
 
 ## クイックスタート
@@ -100,812 +108,439 @@ LuaAIDiary/
 
 - Docker 20.10+
 - Docker Compose 2.0+
-- Make（オプション、推奨）
+- Make（主要開発タスク用に推奨）
 
-### 初期セットアップ（推奨）
-
-Makefileを使った自動セットアップ：
+### 推奨セットアップ
 
 ```bash
-# リポジトリのクローン
 git clone https://github.com/hawkie275/LuaAIDiary.git
 cd LuaAIDiary
-
-# 初期セットアップ（.env作成、GHCRイメージ取得、起動）
 make setup
+```
 
-# 初期セットアップ（ローカルビルド版・従来挙動）
+`make setup` は、必要に応じて `.env.example` から `.env` を作成し、GHCR から最新 Web イメージを取得、`APP_VERSION` を同期、サービスを起動し、DB 起動を短時間待機します。
+
+GHCR から取得せずローカルで Docker イメージをビルドする場合:
+
+```bash
 make setup-build
 ```
 
-これで以下が自動的に実行されます：
-1. `.env`ファイルの作成
-2. レジストリから最新Webイメージ取得（`make setup`利用時）
-3. サービスの起動
-4. データベースの初期化
-
 ### 手動セットアップ
 
-Makefileを使わない場合：
-
 ```bash
-# 1. .envファイルの作成
 cp .env.example .env
-
-# 2. Dockerイメージのビルドとサービス起動
 docker compose up -d --build
-
-# 3. データベースが起動するまで待機（約10秒）
 sleep 10
 ```
 
-### 動作確認
+### アクセス URL
 
-ブラウザで以下のURLにアクセスします：
+- 公開サイト: <http://localhost:8080>
+- 管理画面: <http://localhost:8080/admin>
+- ヘルスチェック: <http://localhost:8080/health>
 
-```
-http://localhost:8080
-```
+デフォルト管理者ユーザーは PostgreSQL 初期化スクリプトで作成されます。詳細は [`postgresql/init/01_create_tables.sql`](postgresql/init/01_create_tables.sql) と [`postgresql/init/02_update_admin_password.sql`](postgresql/init/02_update_admin_password.sql) を確認し、初回ログイン後にパスワードを変更してください。
 
-ヘルスチェック：
-```bash
-curl http://localhost:8080/health
-# または
-make health
-```
-
-## 開発コマンド（Makefile）
-
-プロジェクトには便利なMakefileが用意されています：
+## 主要 Make コマンド
 
 ```bash
-# ヘルプを表示
-make help
+make help              # 利用可能なコマンドを表示
+make setup             # GHCR の Web イメージを使った初期セットアップ
+make setup-build       # ローカル Docker ビルドで初期セットアップ
+make dev               # フォアグラウンドでサービス起動
+make build             # Docker イメージを no-cache でビルド
+make up                # バックグラウンドでサービス起動
+make down              # サービス停止
+make restart           # サービス再起動
+make logs              # 全サービスログを追跡
+make logs-web          # Web ログを追跡
+make logs-db           # PostgreSQL ログを追跡
+make logs-redis        # Valkey ログを追跡
+make shell             # Web コンテナのシェルを開く
+make shell-lua         # Web コンテナ内で Lua シェルを起動
+make shell-db          # DB コンテナのシェルを開く
+make psql              # PostgreSQL クライアントを開く
+make redis-cli         # Valkey/Redis CLI を開く
+make migrate           # 既存 DB にメディアテーブルマイグレーションを適用
+make health            # /health を確認
+make status            # Docker Compose サービス状態を表示
+make db-reset          # 確認後に DB をリセット
+make clean             # 確認後にコンテナとボリュームを削除
+```
 
-# 開発サーバー起動（フォアグラウンド）
-make dev
+## テストと品質確認
 
-# サービス起動（バックグラウンド）
+E2E テストと統合テストはサービス起動後に実行します。
+
+```bash
 make up
-
-# サービス停止
-make down
-
-# サービス再起動
-make restart
-
-# ログ表示
-make logs          # すべてのサービス
-make logs-web      # Webサーバーのみ
-make logs-db       # データベースのみ
-make logs-redis    # Redisのみ
-
-# シェルに接続
-make shell         # Webコンテナ
-make shell-db      # DBコンテナ
-make psql          # PostgreSQLクライアント
-make redis-cli     # Redisクライアント
-
-# テスト実行
-make test          # E2Eテストのみ
-
-# データベースリセット
-make db-reset
-
-# 静的解析
-make lint
-
-# ヘルスチェック
 make health
-
-# サービス状態確認
-make status
-
-# クリーンアップ（データ削除）
-make clean
+make test              # make test-e2e 経由で E2E テストを実行
+make test-e2e          # 投稿 API とメディア API の E2E スクリプトを実行
+make test-integration  # 実 DB に対する統合テストを実行
+make test-all          # 設定済み E2E テストターゲットを実行
+make test-file FILE=/tests/path/to/spec.lua
+make lint              # app/ と tests/ に Luacheck を実行
 ```
 
-## 管理画面
+主なテスト領域:
 
-### アクセス方法
-
-管理画面には以下のURLでアクセスできます：
-
-```
-http://localhost:8080/admin
-```
-
-または
-
-```
-http://localhost:8080/admin/dashboard
-```
-
-### デフォルトログイン情報
-
-初期セットアップ後、以下の管理者アカウントでログインできます：
-
-- **ユーザー名**: `admin`
-- **パスワード**: データベース初期化スクリプトで設定されたパスワード
-  - デフォルトは `postgresql/init/02_update_admin_password.sql` で確認できます
-  - **セキュリティのため、初回ログイン後すぐにパスワードを変更してください**
-
-### パスワード変更
-
-1. 管理画面にログイン
-2. 右上のユーザーメニューから「パスワード変更」を選択
-3. 現在のパスワードと新しいパスワードを入力
-
-または、以下のURLから直接アクセス：
-
-```
-http://localhost:8080/admin/change-password
-```
-
-### 管理画面の主要機能
-
-#### ダッシュボード（`/admin/dashboard`）
-- サイト統計情報の表示
-  - 投稿数（全ステータス）
-  - カテゴリー数
-  - タグ数
-  - コメント数
-- 最近の投稿5件
-- システム情報（Luaバージョン、サーバー時刻、DB接続状態）
-
-#### 投稿管理（`/admin/posts`）
-- 投稿一覧表示
-- 新規投稿作成
-- 投稿編集
-- 投稿削除
-- ステータス管理（draft/published/trash）
-- Markdownプレビュー
-- カテゴリー・タグの割り当て
-
-#### カテゴリー管理（`/admin/categories`）
-- カテゴリー一覧
-- カテゴリー作成・編集・削除
-- 階層構造の管理
-
-#### タグ管理（`/admin/tags`）
-- タグ一覧
-- タグ作成・編集・削除
-
-#### ユーザー管理（`/admin/users`）
-- ユーザー一覧
-- 新規ユーザー作成
-- ユーザー情報編集
-- ロール変更（admin/editor/author/contributor/subscriber）
-- ユーザー削除
-
-#### サイト設定（`/admin/settings`）
-- サイト基本情報
-- AI設定（Gemini API）
-- テーマ設定
-
-#### プロフィール管理（`/admin/profile`）
-- 自分のプロフィール表示・編集
-- パスワード変更
-
-## Gemini AI 機能
-
-LuaAIDiary は Google Gemini API と統合されており、AI を活用した記事作成支援機能を提供します。
-
-### 主な機能
-
-#### 1. AI記事自動生成
-
-トピックやキーワードから、完全な記事を自動生成します。
-
-**機能**:
-- タイトルと本文の自動生成
-- 見出し構成の提案
-- SEOに配慮した文章
-- カスタマイズ可能な文字数・トーン
-
-**使い方**:
-1. 管理画面の投稿編集画面で「AI生成」ボタンをクリック
-2. トピックとキーワードを入力
-3. オプションで対象読者・文字数・トーンを指定
-4. 生成された記事を確認・編集
-
-**APIエンドポイント**:
-```bash
-POST /api/gemini/generate-article
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-
-{
-  "topic": "LuaJITの性能について",
-  "keywords": "Lua, JIT, パフォーマンス",
-  "target_audience": "開発者",
-  "word_count": 2000,
-  "tone": "technical"
-}
-```
-
-#### 2. AI校正機能
-
-既存の記事を分析し、文法・表現・構成の改善提案を行います。
-
-**機能**:
-- 文法チェック
-- 表現の改善提案
-- 読みやすさの向上
-- トーンの調整
-
-**使い方**:
-1. 投稿編集画面で本文を入力
-2. 「AI校正」ボタンをクリック
-3. 改善提案を確認
-4. 必要な修正を適用
-
-**APIエンドポイント**:
-```bash
-POST /api/gemini/proofread
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-
-{
-  "content": "校正したい記事本文...",
-  "tone": "formal"
-}
-```
-
-### Gemini APIキーの設定
-
-AI機能を使用するには、各ユーザーが個別にGemini APIキーを設定する必要があります。
-
-#### 1. APIキーの取得
-
-1. [Google AI Studio](https://makersuite.google.com/app/apikey) にアクセス
-2. Googleアカウントでログイン
-3. 「APIキーを作成」をクリック
-4. 生成されたAPIキーをコピー
-
-#### 2. APIキーの設定
-
-管理画面から設定：
-
-1. `/admin/settings` にアクセス
-2. 「AI設定」タブを選択
-3. Gemini APIキーを入力
-4. 「保存」をクリック
-
-APIから設定：
-
-```bash
-POST /api/settings/gemini-api-key
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-
-{
-  "api_key": "YOUR_GEMINI_API_KEY"
-}
-```
-
-#### 3. セキュリティ
-
-- APIキーはAES-256-CBCで暗号化されてデータベースに保存されます
-- 各ユーザーが個別のAPIキーを管理
-- マスター暗号化キーは環境変数（`ENCRYPTION_KEY`）で管理
-- APIキーは本人のみが参照・更新可能
-
-### AI設定のカスタマイズ
-
-プロンプトテンプレートをカスタマイズすることで、生成される記事の品質やスタイルを調整できます。
-
-**設定項目**:
-- **モデル選択**: `gemini-2.5-flash`, `gemini-1.5-pro` など
-- **記事生成プロンプト**: 記事生成時のプロンプトテンプレート
-- **校正プロンプト**: 校正時のプロンプトテンプレート
-- **デフォルト対象読者**: 記事の対象読者
-- **デフォルトトーン**: formal, casual, technical など
-
-### API接続テスト
-
-APIキーが正しく設定されているかテストできます：
-
-```bash
-POST /api/gemini/test-connection
-Content-Type: application/json
-X-CSRF-Token: YOUR_CSRF_TOKEN
-```
-
-成功時のレスポンス：
-```json
-{
-  "success": true,
-  "data": {
-    "success": true,
-    "message": "API接続に成功しました",
-    "response": "接続成功"
-  }
-}
-```
+- [`tests/e2e`](tests/e2e): 投稿、メディア、認証/管理画面、カテゴリー/タグ、パスワード変更、ユーザー管理の HTTP ベース E2E テスト。
+- [`tests/controllers`](tests/controllers): コントローラー spec。
+- [`tests/models`](tests/models): モデル spec。
+- [`tests/middleware`](tests/middleware): CSRF ミドルウェア spec。
+- [`tests/theme_engine`](tests/theme_engine): リポジトリに残っている実験的テーマ関連コードのテスト。
+- [`tests/integration`](tests/integration): 実 DB 統合テスト。
+- [`tests/performance`](tests/performance): ベンチマークスクリプトとレポート。
 
 ## 利用可能なエンドポイント
 
 ### 公開エンドポイント
 
-| エンドポイント | 説明 | レスポンス |
-|--------------|------|-----------|
-| `GET /` | ホームページ（投稿一覧） | HTML |
-| `GET /:slug` | 単一投稿 | HTML |
-| `GET /category/:slug` | カテゴリーアーカイブ | HTML |
-| `GET /tag/:slug` | タグアーカイブ | HTML |
-| `GET /author/:username` | 著者アーカイブ | HTML |
-| `GET /search` | 検索結果 | HTML |
-| `GET /health` | ヘルスチェック | JSON |
-| `GET /api/db-test` | PostgreSQL接続テスト | JSON |
-| `GET /api/redis-test` | Redis接続テスト | JSON |
+| ルート | 用途 |
+| --- | --- |
+| `/` | ホーム/投稿一覧 |
+| `/posts/:slug` | 単一投稿 |
+| `/category/:slug` | カテゴリーアーカイブ |
+| `/tag/:slug` | タグアーカイブ |
+| `/author/:username` | 著者アーカイブ |
+| `/search` | 検索結果 |
+| `/:year`, `/:year/:month`, `/:year/:month/:day` | 日付アーカイブ |
 
-### 認証APIエンドポイント
+### 認証 API エンドポイント
 
 | エンドポイント | メソッド | 説明 | 認証 |
-|--------------|---------|------|-----|
+| --- | --- | --- | --- |
 | `/api/auth/register` | POST | ユーザー登録 | 不要 |
 | `/api/auth/login` | POST | ログイン | 不要 |
 | `/api/auth/logout` | POST | ログアウト | 必要 |
-| `/api/auth/me` | GET | 現在のユーザー情報取得 | 必要 |
+| `/api/auth/me` | GET | 現在のユーザー取得 | 必要 |
 | `/api/auth/change-password` | POST | パスワード変更 | 必要 |
-| `/api/auth/check` | GET | 認証状態チェック | 任意 |
+| `/api/auth/check` | GET | 認証状態確認 | 任意 |
+| `/api/csrf-token` | GET | CSRF トークン取得 | セッションベース |
 
-### 投稿APIエンドポイント
+### 投稿 API エンドポイント
 
 | エンドポイント | メソッド | 説明 | 認証 |
-|--------------|---------|------|-----|
+| --- | --- | --- | --- |
 | `/api/posts` | GET | 投稿一覧取得 | 任意 |
-| `/api/posts` | POST | 投稿作成 | 必要（author以上） |
-| `/api/posts/:id` | GET | 投稿詳細取得 | 任意 |
-| `/api/posts/:id` | PUT | 投稿更新 | 必要（作成者） |
-| `/api/posts/:id` | DELETE | 投稿削除 | 必要（作成者） |
+| `/api/posts` | POST | 投稿作成 | 必要 |
+| `/api/posts/:id` | GET | 投稿詳細取得 | 任意、下書きは制限あり |
+| `/api/posts/:id` | PUT | 投稿更新 | 所有者 |
+| `/api/posts/:id` | DELETE | 投稿削除 | 所有者 |
 
-### カテゴリーAPIエンドポイント
+### カテゴリー API エンドポイント
 
 | エンドポイント | メソッド | 説明 | 認証 |
-|--------------|---------|------|-----|
+| --- | --- | --- | --- |
 | `/api/categories` | GET | カテゴリー一覧取得 | 不要 |
-| `/api/categories` | POST | カテゴリー作成 | 必要（editor以上） |
+| `/api/categories` | POST | カテゴリー作成 | editor または admin |
 | `/api/categories/:id` | GET | カテゴリー詳細取得 | 不要 |
-| `/api/categories/:id` | PUT | カテゴリー更新 | 必要（editor以上） |
-| `/api/categories/:id` | DELETE | カテゴリー削除 | 必要（editor以上） |
+| `/api/categories/:id` | PUT | カテゴリー更新 | editor または admin |
+| `/api/categories/:id` | DELETE | カテゴリー削除 | editor または admin |
 
-### タグAPIエンドポイント
+### タグ API エンドポイント
 
 | エンドポイント | メソッド | 説明 | 認証 |
-|--------------|---------|------|-----|
+| --- | --- | --- | --- |
 | `/api/tags` | GET | タグ一覧取得 | 不要 |
-| `/api/tags` | POST | タグ作成 | 必要（author以上） |
+| `/api/tags` | POST | タグ作成 | author 以上 |
 | `/api/tags/:id` | GET | タグ詳細取得 | 不要 |
-| `/api/tags/:id` | PUT | タグ更新 | 必要（editor以上） |
-| `/api/tags/:id` | DELETE | タグ削除 | 必要（editor以上） |
+| `/api/tags/:id` | PUT | タグ更新 | editor または admin |
+| `/api/tags/:id` | DELETE | タグ削除 | editor または admin |
+
+### メディア API エンドポイント
+
+| エンドポイント | メソッド | 説明 | 認証 |
+| --- | --- | --- | --- |
+| `/api/media` | GET | アップロード済み画像のページネーション/検索付き一覧 | editor または admin |
+| `/api/media` | POST | multipart form-data による画像アップロード | editor または admin + CSRF |
+| `/api/media/:id` | GET | 画像メタデータ取得 | editor または admin |
+| `/api/media/:id` | PATCH | 画像名/alt テキスト更新 | editor または admin + CSRF |
+| `/api/media/:id` | DELETE | 未使用画像の論理削除 | editor または admin + CSRF |
+
+対応画像形式は `jpg`, `jpeg`, `png`, `webp`, `gif` です。メディアメタデータは PostgreSQL に保存し、ファイル本体は `media_uploads` Docker ボリューム経由で `/app/uploads` に保存します。
+
+現在のメディア API の挙動:
+
+- アップロード時は multipart の `file` が必須、`alt_text` は任意です。
+- 新規アップロードは `201` を返し、`success`, `id`, `file_name`, `url`, `thumbnail_url`, `mime_type`, `size_bytes`, `width`, `height`, `alt_text`, `usage_count`, `in_use`, `deduplicated` を返します。
+- SHA-256 で重複を検知した場合は既存のアクティブメディアを `200` と `deduplicated: true` で返します。
+- `GET /api/media` は `page`, `per_page`, `q` クエリに対応します。
+- `PATCH /api/media/:id` は `file_name` が必須で、`alt_text` も更新できます。
+- `DELETE /api/media/:id` は投稿から参照中の場合 `409` を返します。
+- 10 MB を超えるファイルは `413`、未対応拡張子/MIME 不一致は `415` になります。
 
 ### 管理画面エンドポイント
 
-| エンドポイント | 説明 | 権限 |
-|--------------|------|-----|
-| `GET /admin` | 管理画面トップ（ダッシュボードへリダイレクト） | editor以上 |
-| `GET /admin/dashboard` | ダッシュボード | editor以上 |
-| `GET /admin/posts` | 投稿一覧 | editor以上 |
-| `GET /admin/posts/new` | 新規投稿フォーム | author以上 |
-| `GET /admin/posts/:id/edit` | 投稿編集フォーム | 作成者 |
-| `GET /admin/categories` | カテゴリー管理 | editor以上 |
-| `GET /admin/tags` | タグ管理 | editor以上 |
-| `GET /admin/users` | ユーザー管理 | admin |
-| `GET /admin/settings` | サイト設定 | admin |
-| `GET /admin/profile` | プロフィール表示 | 全ユーザー |
-| `GET /admin/login` | ログインフォーム | 不要 |
-| `GET /admin/change-password` | パスワード変更フォーム | 必要 |
+| ルート | 用途 |
+| --- | --- |
+| `/admin/login` | ログイン画面 |
+| `/admin` | ダッシュボードへリダイレクト |
+| `/admin/dashboard` | ダッシュボード |
+| `/admin/posts` | 投稿管理 |
+| `/admin/posts/new` | 新規投稿フォーム |
+| `/admin/posts/:id/edit` | 投稿編集フォーム |
+| `/admin/categories` | カテゴリー管理 |
+| `/admin/tags` | タグ管理 |
+| `/admin/media` | メディアライブラリ |
+| `/admin/users` | ユーザー管理 |
+| `/admin/users/new` | 新規ユーザーフォーム |
+| `/admin/users/:id/edit` | ユーザー編集フォーム |
+| `/admin/profile` | ユーザープロフィール |
+| `/admin/profile/edit` | 現在ユーザーのプロフィール編集 |
+| `/admin/settings` | サイト/AI 設定 |
+| `/admin/change-password` | パスワード変更 |
 
-### Gemini AI APIエンドポイント
-
-| エンドポイント | メソッド | 説明 | 認証 |
-|--------------|---------|------|-----|
-| `/api/gemini/generate-article` | POST | AI記事生成 | 必要 |
-| `/api/gemini/proofread` | POST | AI校正 | 必要 |
-| `/api/gemini/test-connection` | POST | API接続テスト | 必要 |
-
-### AI設定APIエンドポイント
+### Gemini AI API エンドポイント
 
 | エンドポイント | メソッド | 説明 | 認証 |
-|--------------|---------|------|-----|
-| `/api/settings/ai-preferences` | GET | AI設定取得 | 必要 |
-| `/api/settings/ai-preferences` | PUT | AI設定更新 | 必要 |
-| `/api/settings/gemini-api-key` | POST | APIキー保存 | 必要 |
-| `/api/settings/gemini-api-key` | DELETE | APIキー削除 | 必要 |
+| --- | --- | --- | --- |
+| `/api/gemini/generate-article` | POST | 記事本文生成 | 必要 + CSRF |
+| `/api/gemini/proofread` | POST | 記事本文の校正/改善 | 必要 + CSRF |
+| `/api/gemini/test-connection` | POST | Gemini API 接続テスト | 必要 + CSRF |
+
+### AI 設定 API エンドポイント
+
+| エンドポイント | メソッド | 説明 | 認証 |
+| --- | --- | --- | --- |
+| `/api/settings/ai-preferences` | GET | 現在の AI 設定取得 | 必要 |
+| `/api/settings/ai-preferences/defaults` | GET | AI 設定のデフォルト値取得 | 必要 |
+| `/api/settings/ai-preferences` | PUT | AI 設定更新 | 必要 + CSRF |
+| `/api/settings/gemini-api-key` | POST | Gemini API キー保存 | 必要 + CSRF |
+| `/api/settings/gemini-api-key` | DELETE | Gemini API キー削除 | 必要 + CSRF |
 
 ### その他のエンドポイント
 
 | エンドポイント | メソッド | 説明 |
-|--------------|---------|------|
-| `/api/csrf-token` | GET | CSRFトークン取得 |
-| `/api/preview/markdown` | POST | Markdownプレビュー |
+| --- | --- | --- |
+| `/health` | GET | ヘルスチェック |
+| `/api/db-test` | GET | PostgreSQL 接続テスト |
+| `/api/redis-test` | GET | Valkey 接続テスト |
+| `/api/models-test` | GET | モデル読み込み確認 |
+| `/api/preview/markdown` | POST | 管理画面エディタ向け Markdown プレビュー |
 
-### 例：ヘルスチェック
+### 例: ヘルスチェック
 
 ```bash
 curl http://localhost:8080/health
 ```
 
-レスポンス例：
+レスポンス例:
+
 ```json
 {
   "status": "ok",
   "service": "LuaAIDiary",
-  "timestamp": 1703500000,
-  "version": "0.1.0"
+  "version": "0.1.0",
+  "timestamp": 1760000000
 }
 ```
 
-### 例：データベース接続テスト
+### 例: データベース接続テスト
 
 ```bash
 curl http://localhost:8080/api/db-test
 ```
 
-レスポンス例：
+レスポンス例:
+
 ```json
 {
   "status": "success",
   "message": "データベース接続成功",
-  "postgres_version": "PostgreSQL 15.x",
-  "host": "db",
-  "database": "LuaAIDiary"
+  "postgres_version": "PostgreSQL ...",
+  "database": "luaaidiary",
+  "host": "db"
 }
 ```
 
-## テストの実行
+## データベース補足
 
-### すべてのテストを実行
-
-```bash
-make test
-```
-
-または
+新規コンテナでは [`postgresql/init`](postgresql/init) 配下のスクリプトが実行されます。既存 DB にメディアテーブルを追加する場合は以下を実行します。
 
 ```bash
-docker compose exec web busted tests/
+make migrate
 ```
 
-### 特定のテストファイルを実行
+メディアアップロード用メタデータは [`postgresql/init/06_add_media_tables.sql`](postgresql/init/06_add_media_tables.sql) で作成され、既存 DB 向けの同等マイグレーションは [`postgresql/migrations/001_add_media_tables.sql`](postgresql/migrations/001_add_media_tables.sql) です。
 
-```bash
-make test-file FILE=tests/test_database.lua
-```
+### 主なテーブル
 
-### テストの内容
-
-- **test_database.lua**: データベース接続とスキーマのテスト
-- **test_health.lua**: ヘルスチェックエンドポイントのテスト
-
-## データベーススキーマ
-
-以下のテーブルが自動的に作成されます：
-
-- **users** - ユーザー情報（認証、権限管理）
-- **posts** - 投稿（記事本文、ステータス）
-- **comments** - コメント（スレッド対応）
-- **categories** - カテゴリー（階層構造対応）
-- **tags** - タグ
-- **post_categories** - 投稿とカテゴリーの多対多関連
-- **post_tags** - 投稿とタグの多対多関連
-- **user_settings** - ユーザー設定（Gemini APIキーなど）
-- **post_meta** - 投稿メタデータ（カスタムフィールド）
-
-詳細なスキーマ定義は [`postgresql/init/01_create_tables.sql`](postgresql/init/01_create_tables.sql) を参照してください。
+- `users`: ユーザーアカウントとロール。
+- `posts`: `draft`, `published`, `trash` ステータスを持つ投稿。
+- `comments`: コメントデータとモデレーション状態。
+- `categories`, `tags`: タクソノミーデータ。
+- `post_categories`, `post_tags`: 投稿とタクソノミーの関連。
+- `user_settings`: AI 設定と Gemini API キー保存。
+- `post_meta`: 投稿カスタムメタデータ。
+- `media`: アップロード済み画像メタデータ。
+- `media_post_usages`: 投稿と参照メディアの関連。投稿本文内の `/uploads/...` URL から同期されます。
 
 ## 開発ワークフロー
 
 ### ホットリロード
 
-`app/`ディレクトリのファイルはホストマシンとコンテナ間でマウントされているため、編集すると即座に反映されます。
+開発時は `make dev` でフォアグラウンド起動し、必要に応じて `make restart` でコンテナを再起動します。OpenResty/Lapis 側の反映タイミングに応じてリロードまたは再起動してください。
 
-### コードの静的解析
+### 静的解析
 
 ```bash
 make lint
 ```
 
-Luacheckを使ってコードの品質をチェックします。設定は`.luacheckrc`で管理されています。
+Luacheck は [`app`](app) と [`tests`](tests) を対象に実行されます。
 
-### データベースのリセット
-
-開発中にデータベースをクリーンな状態に戻す：
+### データベースリセット
 
 ```bash
 make db-reset
 ```
 
-### ログの監視
+確認後、初期化スクリプトを使って DB を再作成します。既存のアプリケーションデータは削除されます。
 
-開発中はログを監視しながら作業するのが便利です：
-
-```bash
-make logs-web
-```
-
-## トラブルシューティング
-
-### サービスが起動しない
+### ログ監視
 
 ```bash
-# サービスの状態を確認
-make status
-
-# ログを確認
 make logs
-
-# 完全にクリーンアップして再セットアップ
-make clean
-make setup
-```
-
-### ポートが既に使用されている
-
-ポート8080、5432、6379が既に使用されている場合は、`docker-compose.yml`のポート設定を変更してください。
-
-### データベース接続エラー
-
-```bash
-# データベースコンテナの状態確認
-docker compose ps db
-
-# データベースのログ確認
+make logs-web
 make logs-db
-
-# データベースリセット
-make db-reset
-```
-
-### テストが失敗する
-
-```bash
-# サービスが正常に起動しているか確認
-make health
-
-# データベース接続テスト
-curl http://localhost:8080/api/db-test
-
-# Redis接続テスト
-curl http://localhost:8080/api/redis-test
-```
-
-### コンテナのビルドエラー
-
-```bash
-# キャッシュなしで再ビルド
-make build
+make logs-redis
 ```
 
 ## セキュリティ
 
 ### 本番環境での重要な設定
 
-**⚠️ 本番環境では必ず以下の設定を変更してください：**
+本番利用前に少なくとも以下を確認してください。
 
-1. **データベースパスワードの変更**
-   ```bash
-   # .envファイルで強力なパスワードに変更
-   POSTGRES_PASSWORD=強力なランダムパスワード
-   ```
-
-2. **暗号化キーの生成**
-   ```bash
-   # 安全な32バイトキーを生成
-   openssl rand -hex 32
-   
-   # .envファイルに設定
-   ENCRYPTION_KEY=生成されたキー
-   ```
-
-3. **管理者パスワードの変更**
-   - 初回ログイン後すぐに変更
-   - `/admin/change-password` から変更可能
-
-4. **環境変数の管理**
-   - `.env`ファイルは**絶対にGitにコミットしない**
-   - `.gitignore`に`.env`が含まれていることを確認
-   - 本番環境では環境変数を安全に管理（AWS Secrets Manager、Hashicorp Vaultなど）
-
-5. **HTTPS の使用**
-   - 本番環境では必ずHTTPS/TLS を設定
-   - Let's Encryptなどで無料のSSL証明書を取得可能
+- デフォルト管理者認証情報を変更する。
+- `.env` の `POSTGRES_PASSWORD` とアプリケーションシークレットを強い値にする。
+- Gemini API キー保存に使う暗号化キーを設定し、安全に管理する。
+- 外部公開が不要な DB/キャッシュポートを制限する。
+- リバースプロキシやロードバランサーで HTTPS を利用する。
+- メディアアップロードのサイズ制限と MIME 許可設定を確認する。
 
 ### 実装済みセキュリティ機能
 
 #### パスワードセキュリティ
-- **bcrypt**: 12ラウンドのハッシュ化
-- **ソルト**: 自動生成
-- **最小長**: 8文字
+
+- パスワードハッシュ化は認証サービスで処理します。
+- API と管理画面の両方でパスワード変更に対応しています。
 
 #### セッション管理
-- **ストレージ**: Valkey（インメモリ）
-- **有効期限**: 7日間
-- **Cookie設定**:
-  - `HttpOnly`: JavaScriptからアクセス不可
-  - `SameSite=Lax`: CSRF攻撃を軽減
-  - `Secure`: 本番環境ではHTTPSのみ（要設定）
 
-#### CSRF保護
-- 全ての変更操作でCSRFトークン検証
-- トークンは32バイトのランダム文字列
-- セッションごとに生成
+- セッションデータは Valkey に保存されます。
+- 認証状態はコントローラーおよびミドルウェアで確認されます。
 
-#### APIキー暗号化
-- **暗号化方式**: AES-256-CBC
-- **マスターキー**: 環境変数で管理
-- **アクセス制御**: 本人のみ参照可能
+#### CSRF 保護
 
-#### ロールベースアクセス制御（RBAC）
-- **admin**: 全ての操作が可能
-- **editor**: コンテンツ管理と公開
-- **author**: 自分の記事管理
-- **contributor**: 記事下書き作成
-- **subscriber**: 閲覧のみ
+- 更新系リクエストでは CSRF トークンを生成・検証します。
+- API 利用時は `/api/csrf-token` からトークンを取得できます。
+
+#### API キー暗号化
+
+- Gemini API キー保存はユーザー設定モデルと暗号化ユーティリティを通じて扱います。
+- 各ユーザーが自分の Gemini API キーを管理します。
+
+#### ロールベースアクセス制御
+
+- 管理ダッシュボードとメディアライブラリは `admin` または `editor` が必要です。
+- ユーザー管理は `admin` のみ利用できます。
+- 投稿/カテゴリー/タグ API と管理画面操作ではロールと所有者チェックを行います。
 
 #### 入力検証
-- 全ての入力データをサーバー側で検証
-- SQLインジェクション対策（パラメータ化クエリ）
-- XSS対策（出力エスケープ）
+
+- コントローラーで必須項目、ID、ステータス値、メディア制約を検証します。
+- メディアアップロードでは拡張子/MIME の整合性とサイズ制限を検証します。
 
 ## 環境変数
 
-`.env`ファイルで設定可能な環境変数：
+[`.env.example`](.env.example) から `.env` を作成してください。主な変数は以下です。
+
+| 変数 | 用途 |
+| --- | --- |
+| `POSTGRES_DB` | PostgreSQL データベース名 |
+| `POSTGRES_USER` | PostgreSQL ユーザー |
+| `POSTGRES_PASSWORD` | PostgreSQL パスワード |
+| `IMAGE_TAG` | Docker Compose/GHCR ワークフローで使う Web イメージタグ |
+| `APP_VERSION` | 管理画面のシステム情報に表示するアプリケーションバージョン |
+| `ENCRYPTION_KEY` | 設定時、暗号化されたシークレット保存に使うキー素材 |
+
+`POSTGRES_HOST`, `POSTGRES_PORT`, `REDIS_HOST`, `REDIS_PORT`, `LAPIS_ENVIRONMENT` などのコンテナ実行時変数は [`docker-compose.yml`](docker-compose.yml) から渡されます。
+
+## トラブルシューティング
+
+### サービスが起動しない
 
 ```bash
-# PostgreSQL設定
-POSTGRES_PASSWORD=change_this_secure_password
-POSTGRES_DB=luaaidiary
-POSTGRES_USER=luaaidiary
-
-# Valkey設定
-REDIS_HOST=valkey
-REDIS_PORT=6379
-
-# Lapis設定
-LAPIS_ENVIRONMENT=development
-
-# 暗号化設定（必ず変更！）
-ENCRYPTION_KEY=change_this_to_a_secure_32_byte_key_in_production
-
-# Gemini API設定（オプション）
-GEMINI_API_KEY=your_gemini_api_key_here
+make status
+make logs
 ```
 
-詳細は[`.env.example`](.env.example)を参照してください。
+Docker が起動しているか、`.env` が存在するか、必要なポートが空いているか確認してください。
 
-## プロジェクト構造の詳細
+### ポートが既に使用されている
 
-### `/app` - アプリケーションコード
+デフォルトのサービスポートは以下です。
 
-- **init.lua**: Lapisアプリケーションのメインエントリーポイント
-- **config/**: データベース接続などの設定
-- **controllers/**: リクエストハンドラー
-- **models/**: データモデル
-- **middleware/**: 認証、CSRF対策などのミドルウェア
-- **utils/**: ヘルパー関数、バリデーションなど
+- Web: `8080`
+- PostgreSQL: `5432`
+- Valkey: `6379`
 
-### `/tests` - テストコード
+他プロセスが使用している場合は [`docker-compose.yml`](docker-compose.yml) のポートマッピングを変更してください。
 
-- **test_helper.lua**: テスト用ヘルパー関数
-- **test_database.lua**: データベース接続とスキーマのテスト
-- **test_health.lua**: エンドポイントのテスト
+### データベース接続エラー
 
-### `/docker` - Docker関連
+```bash
+make logs-db
+make psql
+curl http://localhost:8080/api/db-test
+```
 
-- **web/Dockerfile**: OpenResty + Lapis + 各種Luaライブラリ
-- **web/nginx.conf**: Nginx設定（Lapis対応）
+`.env` の `POSTGRES_*` 値と `db` サービスのヘルス状態を確認してください。
 
-## 今後の実装予定
+### テストが失敗する
 
-### Phase 1: コアシステム ✅ 完了
-- ✅ ユーザー認証・認可システム（bcrypt）
-- ✅ 投稿CRUD機能
-- ✅ セッション管理（Valkey）
-- ✅ CSRF対策
+```bash
+make up
+make health
+make test-e2e
+```
 
-### Phase 2: テーマ互換レイヤー（優先度低・ペンディング）
-- [ ] WordPressテーマローダー
-- [ ] WordPress関数エミュレーション
-- [ ] テンプレートエンジン統合
+E2E テストはアプリケーションが期待するベース URL で起動している必要があります。一部のスクリプトは一時ユーザーやコンテンツを作成します。
 
-### Phase 3: Gemini連携 ✅ 完了
-- ✅ Gemini API統合
-- ✅ 記事構成提案機能
-- ✅ APIキー暗号化管理
-- ✅ AI校正機能
+### メディアアップロードが失敗する
 
-### Phase 4: 管理画面 ✅ 完了
-- ✅ ダッシュボード
-- ✅ 投稿管理画面
-- ✅ カテゴリー・タグ管理
-- ✅ ユーザー管理
-- ✅ サイト設定
+- ファイル形式が `jpg`, `jpeg`, `png`, `webp`, `gif` のいずれかか確認する。
+- ファイルサイズがアップロード上限内か確認する。
+- `make logs-web` で Web ログを確認する。
+- 既存 DB の場合は `make migrate` 適用済みか確認する。
+- 削除時に `409` になる場合は、先に投稿本文から画像参照を削除し、利用状況同期で参照を解消してください。
 
-### Phase 5: 今後の拡張（検討中）
+### コンテナビルドエラー
 
-#### コンテンツ機能
-- [ ] リッチテキストエディタ（WYSIWYG）
-- [ ] メディアアップロード・管理
-- [ ] 画像最適化
-- [ ] 投稿のバージョン管理
-- [ ] 投稿の複製機能
-- [ ] 一括操作（複数投稿の削除など）
+```bash
+make build
+make logs-web
+```
 
-#### AI機能の拡張
-- [ ] 記事のSEO分析
-- [ ] 自動タグ付け
-- [ ] 関連記事の提案
-- [ ] 画像生成（Imagen統合）
-- [ ] 多言語翻訳
+レジストリイメージを使う場合は `make setup`、ローカル Docker 変更を開発する場合は `make setup-build` を実行してください。
 
-#### ユーザー機能
-- [ ] 二要素認証（2FA）
-- [ ] パスワードリセット（メール経由）
-- [ ] OAuth連携（Google/GitHub等）
-- [ ] ログイン履歴
-- [ ] セッション管理画面
+## 関連ドキュメント
 
-#### パフォーマンス
-- [ ] ページキャッシュ機構
-- [ ] CDN統合
-- [ ] 画像遅延読み込み
-- [ ] HTTP/2 Server Push
-
-#### プラグインシステム
-- [ ] プラグインアーキテクチャ
-- [ ] フック/フィルターシステム
-- [ ] プラグインマーケットプレイス
-
-#### 監視・分析
-- [ ] アクセス解析
-- [ ] エラー追跡（Sentry統合）
-- [ ] パフォーマンス監視（Prometheus + Grafana）
-
-詳細な実装計画は [DESIGN.md](DESIGN.md) を参照してください。
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): アーキテクチャ概要。
+- [`DESIGN.md`](DESIGN.md): 詳細設計メモ。
+- [`README_ADMIN.md`](README_ADMIN.md): 管理画面ダッシュボード実装メモ。
+- [`README_AUTH.md`](README_AUTH.md): 認証システムドキュメント。
+- [`README_POST_API.md`](README_POST_API.md): 投稿 API ドキュメント。
+- [`docs/media_upload_feature_spec.md`](docs/media_upload_feature_spec.md): メディアアップロード機能仕様。
+- [`docs/media_upload_design.md`](docs/media_upload_design.md): メディアアップロード実装設計。
+- [`tests/e2e/README.md`](tests/e2e/README.md): E2E テストガイド。
+- [`tests/integration/README.md`](tests/integration/README.md): 統合テストガイド。
+- [`tests/performance/README.md`](tests/performance/README.md): 性能テストガイド。
 
 ## ライセンス
 
-このプロジェクトは[MIT License](LICENSE)の下で公開されています。
-
-### MIT Licenseを選んだ理由
-
-1. **自由度が高い** - 商用利用、改変、再配布が自由
-2. **シンプル** - 短く理解しやすいライセンス文
-3. **広く採用** - オープンソースコミュニティで最も人気
-4. **互換性** - 他のライブラリとの組み合わせが容易
-
-MITライセンスにより、このソフトウェアを自由に使用、コピー、変更、マージ、公開、配布、サブライセンス、および販売することができます。
-
-## 参考資料
-
-- [OpenResty公式ドキュメント](https://openresty.org/)
-- [Lapis公式ドキュメント](https://leafo.net/lapis/)
-- [Lua公式サイト](https://www.lua.org/)
-- [PostgreSQL公式ドキュメント](https://www.postgresql.org/docs/current/)
-- [Valkey公式ドキュメント](https://valkey.io/)
-- [Busted公式ドキュメント](https://lunarmodules.github.io/busted/)
-- [Docker公式ドキュメント](https://docs.docker.com/)
-
-## ドキュメント
-
-### アーキテクチャ・設計
-- [ARCHITECTURE.md](ARCHITECTURE.md) - システムアーキテクチャ
-- [DESIGN.md](DESIGN.md) - 詳細設計書
-
-### 機能別ドキュメント
-- [README_ADMIN.md](README_ADMIN.md) - 管理画面機能
-- [README_AUTH.md](README_AUTH.md) - 認証システム
-- [README_POST_API.md](README_POST_API.md) - 投稿API仕様
-- [README_THEME_ENGINE.md](README_THEME_ENGINE.md) - テーマエンジン
-
-### テスト関連
-- [tests/README.md](tests/README.md) - テスト実行方法
-- [tests/e2e/README.md](tests/e2e/README.md) - E2Eテスト
-- [tests/integration/README.md](tests/integration/README.md) - 統合テスト
-
-## コントリビューション
-
-プルリクエストを歓迎します。大きな変更の場合は、まずissueを開いて変更内容を議論してください。
+MIT License。詳細は [`LICENSE`](LICENSE) を参照してください。
