@@ -70,6 +70,89 @@ describe("WP_Query 検索分岐", function()
     assert.equals(3, query.max_num_pages)
   end)
 
+  it("検索語を再デコードせずPost.searchに渡すこと", function()
+    package.preload["models.post"] = function()
+      return {
+        search = function(keyword)
+          assert.equals("%252F", keyword)
+          return {}
+        end,
+        count_search = function(keyword)
+          assert.equals("%252F", keyword)
+          return 0
+        end,
+        find_published = function()
+          return {}
+        end,
+        count = function()
+          return 0
+        end
+      }
+    end
+
+    local wp_query = require("theme_engine.wp_query")
+    local query = wp_query:new({ s = "%252F" })
+
+    assert.is_nil(query.query_error)
+    assert.equals(0, query.post_count)
+  end)
+
+  it("Post.searchのエラーをquery_errorに保持すること", function()
+    package.preload["models.post"] = function()
+      return {
+        search = function()
+          return nil, "search failed"
+        end,
+        count_search = function()
+          error("count_search should not be called")
+        end,
+        find_published = function()
+          return {}
+        end,
+        count = function()
+          return 0
+        end
+      }
+    end
+
+    local wp_query = require("theme_engine.wp_query")
+    local query = wp_query:new({ s = "lua" })
+
+    assert.equals("search failed", query.query_error)
+    assert.equals(0, query.post_count)
+    assert.equals(0, query.found_posts)
+    assert.equals(0, query.max_num_pages)
+  end)
+
+  it("Post.count_searchのエラーをquery_errorに保持すること", function()
+    package.preload["models.post"] = function()
+      return {
+        search = function()
+          return {
+            { id = 1, title = "検索結果", status = "published" }
+          }
+        end,
+        count_search = function()
+          return nil, "count failed"
+        end,
+        find_published = function()
+          return {}
+        end,
+        count = function()
+          return 0
+        end
+      }
+    end
+
+    local wp_query = require("theme_engine.wp_query")
+    local query = wp_query:new({ s = "lua" })
+
+    assert.equals("count failed", query.query_error)
+    assert.equals(1, query.post_count)
+    assert.equals(0, query.found_posts)
+    assert.equals(0, query.max_num_pages)
+  end)
+
   it("空検索では検索関数を呼ばず空結果になること", function()
     local called_search = false
 

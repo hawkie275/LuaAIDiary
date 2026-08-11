@@ -3,22 +3,6 @@
 
 local _M = {}
 
-local function decode_query_value(value)
-    if not value then
-        return ""
-    end
-
-    value = tostring(value)
-    if ngx and ngx.unescape_uri then
-        local ok, decoded = pcall(ngx.unescape_uri, value)
-        if ok and decoded then
-            return decoded
-        end
-    end
-
-    return value
-end
-
 local function trim(value)
     if not value then
         return ""
@@ -41,6 +25,7 @@ function _M:new(args)
         query_vars = args or {},
         found_posts = 0,
         max_num_pages = 0,
+        query_error = nil,
     }
     
     setmetatable(instance, {__index = self})
@@ -107,7 +92,7 @@ function _M:query(args)
     -- 投稿を取得
     if args.s ~= nil then
         -- 検索結果
-        local keyword = trim(decode_query_value(args.s))
+        local keyword = trim(args.s)
         if keyword == "" then
             self.posts = {}
             self.post_count = 0
@@ -122,10 +107,27 @@ function _M:query(args)
                 published_only = published_only
             }
 
-            self.posts = Post.search(keyword, options) or {}
+            local posts, search_err = Post.search(keyword, options)
+            if search_err then
+                self.query_error = search_err
+                self.posts = {}
+                self.post_count = 0
+                self.found_posts = 0
+                self.max_num_pages = 0
+                return self.posts, search_err
+            end
+
+            self.posts = posts or {}
             self.post_count = #self.posts
 
-            local count = Post.count_search(keyword, published_only)
+            local count, count_err = Post.count_search(keyword, published_only)
+            if count_err then
+                self.query_error = count_err
+                self.found_posts = 0
+                self.max_num_pages = 0
+                return self.posts, count_err
+            end
+
             self.found_posts = count or 0
             self.max_num_pages = math.ceil(self.found_posts / limit)
         end

@@ -217,6 +217,14 @@ function _M.search()
         posts_per_page = 10,
         paged = tonumber(ngx.var.arg_paged) or 1
     })
+
+    if query.query_error then
+        ngx.log(ngx.ERR, "検索クエリエラー: ", query.query_error)
+        ngx.status = 500
+        ngx.header.content_type = "text/html; charset=utf-8"
+        ngx.say("検索処理中にエラーが発生しました。")
+        return
+    end
     
     wp_query.set_global_query(query)
     
