@@ -3,6 +3,30 @@
 
 local _M = {}
 
+local function decode_query_value(value)
+    if not value then
+        return ""
+    end
+
+    value = tostring(value)
+    if ngx and ngx.unescape_uri then
+        local ok, decoded = pcall(ngx.unescape_uri, value)
+        if ok and decoded then
+            return decoded
+        end
+    end
+
+    return value
+end
+
+local function trim(value)
+    if not value then
+        return ""
+    end
+
+    return tostring(value):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
 -- グローバルクエリ
 _M.global_query = nil
 _M.current_query = nil
@@ -74,11 +98,6 @@ function _M:query(args)
         conditions.author_id = args.author
     end
     
-    -- 検索
-    if args.s then
-        -- 全文検索（後で実装）
-    end
-    
     -- 並び順
     if args.orderby then
         local order = args.order or "DESC"
@@ -86,7 +105,31 @@ function _M:query(args)
     end
     
     -- 投稿を取得
-    if args.p or args.name then
+    if args.s ~= nil then
+        -- 検索結果
+        local keyword = trim(decode_query_value(args.s))
+        if keyword == "" then
+            self.posts = {}
+            self.post_count = 0
+            self.found_posts = 0
+            self.max_num_pages = 0
+        else
+            local published_only = conditions.status == "published"
+            local options = {
+                limit = limit,
+                offset = offset,
+                order_by = order_by,
+                published_only = published_only
+            }
+
+            self.posts = Post.search(keyword, options) or {}
+            self.post_count = #self.posts
+
+            local count = Post.count_search(keyword, published_only)
+            self.found_posts = count or 0
+            self.max_num_pages = math.ceil(self.found_posts / limit)
+        end
+    elseif args.p or args.name then
         -- 単一投稿
         local post
         if args.p then

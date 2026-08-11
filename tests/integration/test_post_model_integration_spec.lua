@@ -362,6 +362,50 @@ describe("投稿モデル統合テスト #integration", function()
       helper.assert_greater_than(#posts, 0, "投稿が取得されるべき")
     end)
   end)
+
+  describe("search", function()
+    it("タイトル・抜粋・本文を日本語の部分一致で検索し公開済みのみに限定できること", function()
+      local Post = require("models.post")
+
+      db:query(string.format([[
+        INSERT INTO posts (title, slug, excerpt, content, author_id, status, published_at, created_at, updated_at)
+        VALUES ('TEST_検索_タイトル一致', 'test-search-title', '通常の抜粋', '通常の本文', %d, 'published', NOW(), NOW(), NOW())
+      ]], test_user_id))
+
+      db:query(string.format([[
+        INSERT INTO posts (title, slug, excerpt, content, author_id, status, published_at, created_at, updated_at)
+        VALUES ('TEST_検索_抜粋一致', 'test-search-excerpt', 'これは日本語検索キーワードの抜粋です', '通常の本文', %d, 'published', NOW(), NOW(), NOW())
+      ]], test_user_id))
+
+      db:query(string.format([[
+        INSERT INTO posts (title, slug, excerpt, content, author_id, status, published_at, created_at, updated_at)
+        VALUES ('TEST_検索_本文一致', 'test-search-content', '通常の抜粋', '本文に日本語検索キーワードを含みます', %d, 'published', NOW(), NOW(), NOW())
+      ]], test_user_id))
+
+      db:query(string.format([[
+        INSERT INTO posts (title, slug, excerpt, content, author_id, status, created_at, updated_at)
+        VALUES ('TEST_検索_下書き', 'test-search-draft', '日本語検索キーワードの下書き', '下書き本文', %d, 'draft', NOW(), NOW())
+      ]], test_user_id))
+
+      local posts, err = Post.search("日本語検索キーワード", {
+        published_only = true,
+        limit = 10,
+        offset = 0,
+        order_by = "posts.id ASC"
+      })
+
+      helper.assert_not_nil(posts)
+      assert.is_nil(err)
+      assert.equals(2, #posts)
+      for _, post in ipairs(posts) do
+        assert.equals("published", post.status)
+      end
+
+      local count, count_err = Post.count_search("日本語検索キーワード", true)
+      assert.is_nil(count_err)
+      assert.equals(2, count)
+    end)
+  end)
   
   -- ========================================
   -- 投稿更新のテスト

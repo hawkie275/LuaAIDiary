@@ -9,6 +9,30 @@ local Tag = require "models.tag"
 
 local _M = {}
 
+local function decode_query_value(value)
+    if not value then
+        return ""
+    end
+
+    value = tostring(value)
+    if ngx and ngx.unescape_uri then
+        local ok, decoded = pcall(ngx.unescape_uri, value)
+        if ok and decoded then
+            return decoded
+        end
+    end
+
+    return value
+end
+
+local function trim(value)
+    if not value then
+        return ""
+    end
+
+    return tostring(value):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
 -- ホームページを表示
 function _M.index()
     -- 公開済み投稿を取得
@@ -185,11 +209,7 @@ end
 
 -- 検索結果を表示
 function _M.search()
-    local search_query = ngx.var.arg_s or ""
-    
-    if search_query == "" then
-        return _M.error_404()
-    end
+    local search_query = trim(decode_query_value(ngx.var.arg_s or ""))
     
     -- 検索クエリを作成
     local query = wp_query:new({
