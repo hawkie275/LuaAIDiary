@@ -16,6 +16,8 @@ LuaAIDiary は OpenResty、LuaJIT、Lapis、PostgreSQL、Valkey で構成され�
 
 - ホーム、単一投稿、カテゴリーアーカイブ、タグアーカイブ、著者アーカイブ、日付アーカイブ、検索結果、404 表示。
 - `/`, `/posts/:slug`, `/category/:slug`, `/tag/:slug`, `/author/:username`, `/search`, 日付アーカイブなどの WordPress 風ルーティング。
+- 記事一覧画面と記事表示画面のサイドバー検索フォームから、公開記事をタイトル・抜粋・本文の部分一致で検索できます。
+- 検索 URL は `/search?s=keyword` の形式で、検索結果は検索結果画面のサイドバー内にレスポンシブ表示されます。
 - [`app/init.lua`](app/init.lua) で接続されている公開表示用コントローラー経路による基本表示。
 
 ### 管理画面
@@ -205,7 +207,7 @@ make lint              # app/ と tests/ に Luacheck を実行
 | `/category/:slug` | カテゴリーアーカイブ |
 | `/tag/:slug` | タグアーカイブ |
 | `/author/:username` | 著者アーカイブ |
-| `/search` | 検索結果 |
+| `/search?s=keyword` | 公開記事をタイトル・抜粋・本文で検索し、サイドバー内にレスポンシブ表示 |
 | `/:year`, `/:year/:month`, `/:year/:month/:day` | 日付アーカイブ |
 
 ### 認証 API エンドポイント

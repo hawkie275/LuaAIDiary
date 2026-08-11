@@ -537,6 +537,7 @@ function _M.search(keyword, options)
     
     options = options or {}
     
+    local search_pattern = "%" .. keyword .. "%"
     local status_clause = ""
     if options.published_only then
         status_clause = " AND posts.status = 'published'"
@@ -551,10 +552,16 @@ function _M.search(keyword, options)
             users.display_name as user_display_name
         FROM posts
         LEFT JOIN users ON posts.author_id = users.id
-        WHERE to_tsvector('english', posts.title || ' ' || posts.content) @@ to_tsquery('english', %s)%s
+        WHERE (
+            posts.title ILIKE %s
+            OR posts.excerpt ILIKE %s
+            OR posts.content ILIKE %s
+        )%s
         ORDER BY %s
     ]],
-        db_config.escape(keyword),
+        db_config.escape(search_pattern),
+        db_config.escape(search_pattern),
+        db_config.escape(search_pattern),
         status_clause,
         options.order_by or "posts.published_at DESC"
     )
@@ -609,6 +616,44 @@ function _M.search(keyword, options)
     end
     
     return posts, nil
+end
+
+-- 検索結果件数を取得
+-- @param keyword 検索キーワード
+-- @param published_only 公開済み投稿のみに限定するか
+-- @return 件数、エラー
+function _M.count_search(keyword, published_only)
+    if not keyword or keyword == "" then
+        return 0, nil
+    end
+
+    local search_pattern = "%" .. keyword .. "%"
+    local status_clause = ""
+    if published_only then
+        status_clause = " AND posts.status = 'published'"
+    end
+
+    local query = string.format([[
+        SELECT COUNT(*) as count
+        FROM posts
+        WHERE (
+            posts.title ILIKE %s
+            OR posts.excerpt ILIKE %s
+            OR posts.content ILIKE %s
+        )%s
+    ]],
+        db_config.escape(search_pattern),
+        db_config.escape(search_pattern),
+        db_config.escape(search_pattern),
+        status_clause
+    )
+
+    local results, err = db_config.query(query)
+    if not results then
+        return nil, err
+    end
+
+    return tonumber(results[1].count) or 0, nil
 end
 
 -- ========================================

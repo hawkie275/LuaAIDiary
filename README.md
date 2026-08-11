@@ -16,6 +16,8 @@ The current implementation includes admin content management, authentication/aut
 
 - Home page, single post pages, category archives, tag archives, author archives, date archives, search results, and 404 handling.
 - WordPress-like routing such as `/`, `/posts/:slug`, `/category/:slug`, `/tag/:slug`, `/author/:username`, `/search`, and date archive paths.
+- Sidebar post search form on the post list and single post pages for searching published posts by partial matches in the title, excerpt, and content.
+- Search requests use URLs such as `/search?s=keyword`, and results are rendered responsively inside the search results page sidebar.
 - Basic public rendering through the public controller path currently wired in [`app/init.lua`](app/init.lua).
 
 ### Admin panel
@@ -205,7 +207,7 @@ Notable test areas:
 | `/category/:slug` | Category archive |
 | `/tag/:slug` | Tag archive |
 | `/author/:username` | Author archive |
-| `/search` | Search results |
+| `/search?s=keyword` | Search published posts by title, excerpt, or content and show responsive sidebar results |
 | `/:year`, `/:year/:month`, `/:year/:month/:day` | Date archives |
 
 ### Authentication API Endpoints
