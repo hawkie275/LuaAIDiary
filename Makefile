@@ -110,6 +110,7 @@ redis-cli:
 migrate:
 	@echo "🗄️  データベースマイグレーションを実行中..."
 	$(DOCKER_COMPOSE) exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < postgresql/migrations/001_add_media_tables.sql
+	$(DOCKER_COMPOSE) exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < postgresql/migrations/002_add_post_search_trgm_gin_index.sql
 	@echo "✅ データベースマイグレーションが完了しました"
 
 # E2Eテストを実行（HTTP経由）

@@ -10,6 +10,8 @@ local Media = require("models.media")
 
 local _M = Base.new("posts")
 
+local POST_SEARCH_TEXT_EXPR = "coalesce(posts.title, '') || ' ' || coalesce(posts.excerpt, '') || ' ' || coalesce(posts.content, '')"
+
 -- ========================================
 -- 投稿作成
 -- ========================================
@@ -552,15 +554,10 @@ function _M.search(keyword, options)
             users.display_name as user_display_name
         FROM posts
         LEFT JOIN users ON posts.author_id = users.id
-        WHERE (
-            posts.title ILIKE %s
-            OR posts.excerpt ILIKE %s
-            OR posts.content ILIKE %s
-        )%s
+        WHERE (%s) ILIKE %s%s
         ORDER BY %s
     ]],
-        db_config.escape(search_pattern),
-        db_config.escape(search_pattern),
+        POST_SEARCH_TEXT_EXPR,
         db_config.escape(search_pattern),
         status_clause,
         options.order_by or "posts.published_at DESC"
@@ -636,14 +633,9 @@ function _M.count_search(keyword, published_only)
     local query = string.format([[
         SELECT COUNT(*) as count
         FROM posts
-        WHERE (
-            posts.title ILIKE %s
-            OR posts.excerpt ILIKE %s
-            OR posts.content ILIKE %s
-        )%s
+        WHERE (%s) ILIKE %s%s
     ]],
-        db_config.escape(search_pattern),
-        db_config.escape(search_pattern),
+        POST_SEARCH_TEXT_EXPR,
         db_config.escape(search_pattern),
         status_clause
     )

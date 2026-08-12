@@ -58,9 +58,10 @@ CREATE INDEX idx_posts_status ON posts(status);
 CREATE INDEX idx_posts_published_at ON posts(published_at);
 CREATE INDEX idx_posts_author_id ON posts(author_id);
 
--- 全文検索用のGINインデックス
-CREATE INDEX idx_posts_title_content_gin ON posts 
-    USING GIN (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(content, '')));
+-- 投稿検索用のGINインデックス（日本語を含む部分一致検索を高速化）
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX idx_posts_search_trgm_gin ON posts
+    USING GIN ((coalesce(title, '') || ' ' || coalesce(excerpt, '') || ' ' || coalesce(content, '')) gin_trgm_ops);
 
 -- postsテーブルのupdated_atトリガー
 CREATE TRIGGER trigger_posts_updated_at
