@@ -6,7 +6,7 @@ Lua/OpenResty ベースの WordPress ライクなブログシステムです。�
 
 ## 概要
 
-LuaAIDiary は OpenResty、LuaJIT、Lapis、PostgreSQL、Valkey で構成されたブログ/CMS アプリケーションです。WordPress 風の公開 URL、認証付き管理画面、投稿・カテゴリー・タグ・メディア・認証用 API、Docker Compose ベースのローカル開発環境を提供します。
+LuaAIDiary は OpenResty、LuaJIT Plus、Lapis、PostgreSQL、Valkey で構成されたブログ/CMS アプリケーションです。WordPress 風の公開 URL、認証付き管理画面、投稿・カテゴリー・タグ・メディア・認証用 API、Docker Compose ベースのローカル開発環境を提供します。
 
 現在の実装には、管理画面でのコンテンツ管理、認証/権限管理、Gemini AI 連携、PostgreSQL メタデータと Docker ボリュームを利用する Phase 1 のローカル画像アップロード機能が含まれます。
 
@@ -68,7 +68,7 @@ LuaAIDiary は OpenResty、LuaJIT、Lapis、PostgreSQL、Valkey で構成され�
 ## 技術スタック
 
 - **言語**: Lua
-- **ランタイム/Web サーバー**: OpenResty + LuaJIT + Nginx
+- **ランタイム/Web サーバー**: OpenResty + LuaJIT Plus + Nginx
 - **Web フレームワーク**: Lapis
 - **データベース**: PostgreSQL 18
 - **セッション/キャッシュストア**: Valkey 9
@@ -111,6 +111,8 @@ LuaAIDiary/
 - Docker 20.10+
 - Docker Compose 2.0+
 - Make（主要開発タスク用に推奨）
+
+Web イメージは Alpine 上で OpenResty をソースビルドし、同梱 LuaJIT を固定リビジョンの LuaJIT Plus に差し替えて Docker ビルドします。LuaJIT Plus は、OpenResty/LuaJIT の実行モデルを保ちながら `switch`/`case` などの拡張 Lua 構文を追加する LuaJIT フォークで、Web サーバー構成を変えずにより表現力の高い Lua コードへ対応できるようにします。
 
 ### 推奨セットアップ
 

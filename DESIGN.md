@@ -27,7 +27,7 @@ LuaAIDiaryは、Lua製のWordPressライクな高性能ブログシステムで�
 
 | 技術 | 選定理由 |
 |------|----------|
-| OpenResty | NginxにLuaJITを統合し、高性能な非同期処理を実現 |
+| OpenResty | NginxにLuaJIT Plusを統合し、高性能な非同期処理を実現 |
 | PostgreSQL 15 | 高度なSQL機能、JSONB型、GINインデックス、豊富な拡張機能に対応 |
 | Lapis | Lua用軽量Webフレームワーク（オプション） |
 | lua-resty-template | テンプレートエンジン |
