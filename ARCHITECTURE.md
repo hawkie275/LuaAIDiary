@@ -14,16 +14,16 @@ graph TB
         DB[(PostgreSQL 18<br/>データベース)]
         Valkey[(Valkey 9<br/>セッションストア)]
         WebVol[/app ボリューム/]
-        DBVol[/postgresql-data ボリューム/]
-        RedisVol[/redis-data ボリューム/]
+        DBVol[/db_data ボリューム/]
+        ValkeyVol[/redis_data ボリューム/]
     end
 
     Client -->|HTTP:8080| Web
     Web -->|SQL| DB
-    Web -->|セッション管理| Redis
+    Web -->|セッション管理| Valkey
     Web ---|マウント| WebVol
     DB ---|永続化| DBVol
-    Redis ---|永続化| RedisVol
+    Valkey ---|永続化| ValkeyVol
 ```
 
 ## 1. Docker Compose全体構成
@@ -31,8 +31,8 @@ graph TB
 ### サービス構成
 
 - **web**: OpenResty + LuaJIT Plus + Lapisベースの高性能Webサーバー (Lua実行環境)
-- **db**: PostgreSQL 15データベースサーバー
-- **redis**: Redis 7セッションストア（認証セッション管理用）
+- **db**: PostgreSQL 18データベースサーバー
+- **valkey**: Valkey 9セッションストア（認証セッション管理用）
 
 ### ネットワーク
 
@@ -41,8 +41,8 @@ graph TB
 
 ### ボリューム
 
-- `postgresql-data`: PostgreSQLデータの永続化用
-- `redis-data`: Redisデータの永続化用
+- `db_data`: PostgreSQLデータの永続化用
+- `redis_data`: Valkeyデータの永続化用
 - `./app`: アプリケーションコード (ホストとコンテナ間で共有)
 - `./docker/web/nginx.conf`: Nginx設定ファイル
 - `./logs`: アプリケーションログ
@@ -61,72 +61,73 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./app:/app
-      - ./docker/web/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
-      - ./static:/app/static:ro
-      - ./wp-content:/app/wp-content:ro
+      - logs:/var/log/nginx
+      - media_uploads:/app/uploads
     environment:
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-luaaidiary}
-      - POSTGRES_USER=${POSTGRES_USER:-luaaidiary}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - REDIS_HOST=redis
+      - REDIS_HOST=valkey
       - REDIS_PORT=6379
-      - LAPIS_ENVIRONMENT=${LAPIS_ENVIRONMENT:-development}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - LAPIS_ENVIRONMENT=development
     depends_on:
       - db
-      - redis
+      - valkey
     networks:
       - luaaidiary-network
     restart: unless-stopped
 
   db:
-    image: postgres:15-alpine
+    image: postgres:18
     container_name: luaaidiary-db
     environment:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-luaaidiary}
-      - POSTGRES_USER=${POSTGRES_USER:-luaaidiary}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
     volumes:
-      - postgresql-data:/var/lib/postgresql/data
-      - ./postgresql/init:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/postgresql
+      - ./postgresql/init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     networks:
       - luaaidiary-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-luaaidiary}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: luaaidiary-redis
+  valkey:
+    image: valkey/valkey:9-alpine
+    container_name: luaaidiary-valkey
     volumes:
-      - redis-data:/data
+      - redis_data:/data
     ports:
       - "6379:6379"
     networks:
       - luaaidiary-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 3s
+      retries: 3
 
 networks:
   luaaidiary-network:
     driver: bridge
 
 volumes:
-  postgresql-data:
+  db_data:
     driver: local
-  redis-data:
+  redis_data:
+    driver: local
+  logs:
+    driver: local
+  media_uploads:
     driver: local
 ```
 
@@ -363,7 +364,7 @@ server {
 
 ### バージョン
 
-- PostgreSQL 15 (高度なSQL機能、JSONB型、GINインデックス対応)
+- PostgreSQL 18 (高度なSQL機能、JSONB型、GINインデックス対応)
 
 ### 環境変数
 
@@ -507,7 +508,7 @@ CREATE TABLE IF NOT EXISTS post_tags (
 |----------|----------------|--------------|------|
 | web | 80 | 8080 | HTTP通信 |
 | db | 5432 | 5432 | PostgreSQL接続 (開発用) |
-| redis | 6379 | 6379 | Redis接続 (開発用) |
+| valkey | 6379 | 6379 | Valkey接続 (開発用) |
 
 ### ネットワーク構成
 
@@ -515,13 +516,13 @@ CREATE TABLE IF NOT EXISTS post_tags (
 - **ドライバー**: bridge
 - **サービス間通信**:
   - Webコンテナからデータベースへの接続: `db:5432`
-  - Webコンテナからキャッシュへの接続: `redis:6379`
+  - Webコンテナからセッションストアへの接続: `valkey:6379`
   - 内部DNS名でサービス名を使用
 
 ### セキュリティ考慮事項
 
 - 本番環境ではPostgreSQLの5432ポートを外部公開しない
-- 本番環境ではRedisの6379ポートを外部公開しない
+- 本番環境ではValkeyの6379ポートを外部公開しない
 - 環境変数は`.env`ファイルで管理し、`.gitignore`に追加
 - パスワードは強固なものに変更
 - ENCRYPTION_KEYは32バイト以上の強固なキーを使用
@@ -649,10 +650,10 @@ pg:keepalive(10000, 100)
 
 - **Nginxページキャッシュ**: proxy_cacheによる高速キャッシュ（5分TTL）
 - **アプリケーションレベルキャッシュ**: lua-resty-lrucache によるメモリ内LRUキャッシュ（1000アイテム）
-- **Redis**: セッション管理専用（7日間有効期限）
+- **Valkey**: セッション管理専用（7日間有効期限）
 - **Lua共有辞書**: 一時データの高速アクセス
 
-※現時点でRedisはセッション管理のみに使用。ページキャッシュはNginx proxy_cacheとLRUキャッシュで実装
+※現時点でValkeyはセッション管理のみに使用。ページキャッシュはNginx proxy_cacheとLRUキャッシュで実装
 
 ### データベース最適化
 
@@ -664,7 +665,7 @@ pg:keepalive(10000, 100)
 
 - 複数のWebコンテナを起動可能
 - ロードバランサー (Nginx/HAProxy) の追加
-- Redis によるセッション外部化（実装済み）
+- Valkey によるセッション外部化（実装済み）
 
 ### 実施した最適化
 
@@ -676,11 +677,11 @@ pg:keepalive(10000, 100)
 
 ### 追加可能なサービス
 
-- ~~Redis: セッションストア~~ ✅ **実装済み**（キャッシュ機能は将来拡張予定）
+- ~~Valkey: セッションストア~~ ✅ **実装済み**（キャッシュ機能は将来拡張予定）
 - Elasticsearch: 全文検索（PostgreSQL GINインデックスで代替中）
 - MinIO/S3: メディアファイルストレージ
 - pgBouncer: データベース接続プーリング
-- Redisキャッシュ: ページキャッシュのRedis化（現在はNginx proxy_cache + LRUキャッシュ）
+- Valkeyキャッシュ: ページキャッシュのValkey化（現在はNginx proxy_cache + LRUキャッシュ）
 
 ### 監視とロギング
 
@@ -696,13 +697,13 @@ pg:keepalive(10000, 100)
 
 ## まとめ
 
-本設計書は、Docker Composeを使用してLuaベースのWordPressライクなブログシステムを構築するための包括的なアーキテクチャを提供します。OpenResty + Lapis と PostgreSQL + Redis の組み合わせにより、**70,000+ req/sec** の高性能で拡張性のあるシステムを実現しています。
+本設計書は、Docker Composeを使用してLuaベースのWordPressライクなブログシステムを構築するための包括的なアーキテクチャを提供します。OpenResty + Lapis と PostgreSQL + Valkey の組み合わせにより、**70,000+ req/sec** の高性能で拡張性のあるシステムを実現しています。
 
 ### 主な技術的特徴
 
 - **Lapisフレームワーク**: OpenResty上で動作する高速Luaウェブフレームワーク
-- **PostgreSQL 15**: JSONB型、GINインデックス、全文検索対応
-- **Redis 7**: セッション管理、キャッシュストア
+- **PostgreSQL 18**: JSONB型、GINインデックス、全文検索対応
+- **Valkey 9**: セッション管理、キャッシュストア
 - **Nginxページキャッシュ**: proxy_cacheによる高速レスポンス
 - **bcrypt認証**: 12ラウンドのパスワードハッシュ
 - **CSRF保護**: セッションベースのトークン検証
