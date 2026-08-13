@@ -6,7 +6,7 @@ Japanese documentation is available in [`README_JP.md`](README_JP.md).
 
 ## Overview
 
-LuaAIDiary is a blog/CMS application built on OpenResty, LuaJIT, Lapis, PostgreSQL, and Valkey. It provides WordPress-like public URLs, an authenticated admin UI for content management, REST-like APIs for posts/categories/tags/media/authentication, and Docker Compose-based local development.
+LuaAIDiary is a blog/CMS application built on OpenResty, LuaJIT Plus, Lapis, PostgreSQL, and Valkey. It provides WordPress-like public URLs, an authenticated admin UI for content management, REST-like APIs for posts/categories/tags/media/authentication, and Docker Compose-based local development.
 
 The current implementation includes admin content management, authentication/authorization, Gemini AI support, and Phase 1 local image upload support backed by PostgreSQL metadata and a Docker volume.
 
@@ -68,7 +68,7 @@ The current implementation includes admin content management, authentication/aut
 ## Tech Stack
 
 - **Language**: Lua
-- **Runtime/Web server**: OpenResty + LuaJIT + Nginx
+- **Runtime/Web server**: OpenResty + LuaJIT Plus + Nginx
 - **Web framework**: Lapis
 - **Database**: PostgreSQL 18
 - **Session/cache store**: Valkey 9
@@ -111,6 +111,8 @@ LuaAIDiary/
 - Docker 20.10+
 - Docker Compose 2.0+
 - Make, recommended for common development tasks
+
+The web image builds OpenResty from source on Alpine and replaces the bundled LuaJIT with a pinned LuaJIT Plus revision during the Docker build. LuaJIT Plus is a LuaJIT fork that keeps the OpenResty/LuaJIT execution model while adding extended Lua syntax such as `switch`/`case`, making the runtime ready for more expressive Lua code without changing the web server architecture.
 
 ### Recommended setup
 

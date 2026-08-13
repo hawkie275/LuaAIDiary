@@ -10,9 +10,9 @@
 graph TB
     Client[クライアント<br/>ブラウザ]
     subgraph Docker環境
-        Web[Webサーバー<br/>OpenResty + Lapis]
-        DB[(PostgreSQL 15<br/>データベース)]
-        Redis[(Redis 7<br/>セッションストア)]
+        Web[Webサーバー<br/>OpenResty + LuaJIT Plus + Lapis]
+        DB[(PostgreSQL 18<br/>データベース)]
+        Valkey[(Valkey 9<br/>セッションストア)]
         WebVol[/app ボリューム/]
         DBVol[/postgresql-data ボリューム/]
         RedisVol[/redis-data ボリューム/]
@@ -30,7 +30,7 @@ graph TB
 
 ### サービス構成
 
-- **web**: OpenResty + Lapisベースの高性能Webサーバー (Lua実行環境)
+- **web**: OpenResty + LuaJIT Plus + Lapisベースの高性能Webサーバー (Lua実行環境)
 - **db**: PostgreSQL 15データベースサーバー
 - **redis**: Redis 7セッションストア（認証セッション管理用）
 
@@ -132,14 +132,21 @@ volumes:
 
 ## 3. Dockerfile (Webサーバー用)
 
-### ベースイメージ
+### ベースイメージとビルド方針
 
-- `openresty/openresty:alpine`: 軽量で高性能なOpenRestyイメージ
+- `alpine:3.22`: ビルド用/実行用ステージのベースイメージ
+- OpenRestyをソースからビルドし、同梱LuaJITを固定リビジョンのLuaJIT Plusに差し替える
+- LuaJIT Plusは、OpenResty/LuaJITの実行モデルを保ちながら`switch`/`case`などの拡張Lua構文を追加するLuaJITフォーク
+- 改善内容は、公式OpenResty Alpineイメージ依存から再現可能なソースビルドへ切り替え、実行環境を拡張構文対応のLuaJIT Plusへ統一した点
+- LuaRocksはLuaJIT PlusのABI/ヘッダーに合わせてモジュールをインストールする
 
 ### 必要なパッケージ
 
 ```dockerfile
-FROM openresty/openresty:alpine
+FROM alpine:3.22 AS builder
+
+ARG OPENRESTY_VERSION=latest
+ARG LUAJIT_PLUS_REF=8cd19064101f46bf0ab713e5dab9d83a77e73909
 
 # 必要なパッケージのインストール
 RUN apk add --no-cache \
@@ -149,16 +156,13 @@ RUN apk add --no-cache \
     openssl-dev \
     postgresql-client
 
-# LuaRocksのインストール (Luaパッケージマネージャー)
-RUN apk add --no-cache luarocks
+# OpenResty の bundled LuaJIT を LuaJIT Plus に置き換えてビルド
+# LuaRocks モジュールは OpenResty/LuaJIT Plus 向けにインストール
 
-# 必要なLuaモジュールのインストール
-RUN luarocks install pgmoon \
-    && luarocks install lua-resty-template \
-    && luarocks install lua-resty-session \
-    && luarocks install lua-cjson \
-    && luarocks install luasocket \
-    && luarocks install bcrypt
+FROM alpine:3.22
+
+# ビルド済み OpenResty/LuaJIT Plus と LuaRocks ライブラリ群をコピー
+COPY --from=builder /usr/local/openresty/ /usr/local/openresty/
 
 # アプリケーションディレクトリの作成
 RUN mkdir -p /app
