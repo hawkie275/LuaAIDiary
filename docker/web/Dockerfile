@@ -137,6 +137,7 @@ RUN apk add --no-cache \
     openssl \
     pcre \
     pcre2 \
+    postgresql-client \
     postgresql-libs \
     readline \
     vips \
@@ -149,9 +150,13 @@ WORKDIR /app
 
 # アプリケーション本体・設定ファイルをイメージに同梱
 COPY app/ /app/
+COPY postgresql/migrations/ /app/postgresql/migrations/
 COPY wp-content/ /app/wp-content/
 COPY static/ /usr/local/openresty/nginx/html/static/
 COPY docker/web/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY docker/web/run-migrations.sh /usr/local/bin/run-migrations.sh
+
+RUN chmod +x /usr/local/bin/run-migrations.sh
 
 # Nginxキャッシュディレクトリの作成
 RUN mkdir -p /var/cache/nginx/luaaidiary \
