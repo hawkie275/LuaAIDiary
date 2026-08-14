@@ -166,7 +166,7 @@ make shell-lua         # Start a Lua shell in the web container
 make shell-db          # Open a shell in the DB container
 make psql              # Open PostgreSQL client
 make redis-cli         # Open Valkey/Redis CLI
-make migrate           # Apply media-table migration to an existing DB
+make migrate           # Apply pending migrations to an existing DB
 make health            # Check /health
 make status            # Show Docker Compose service status
 make db-reset          # Reset database after confirmation
@@ -362,13 +362,15 @@ Example response:
 
 ## Database Notes
 
-Fresh containers run all scripts in [`postgresql/init`](postgresql/init). Existing databases can apply the media table migration with:
+Fresh database containers run all scripts in [`postgresql/init`](postgresql/init). Existing databases should be upgraded with the migration runner bundled in the web image:
 
 ```bash
 make migrate
 ```
 
-Media upload metadata is created by [`postgresql/init/06_add_media_tables.sql`](postgresql/init/06_add_media_tables.sql), and the equivalent existing-DB migration is [`postgresql/migrations/001_add_media_tables.sql`](postgresql/migrations/001_add_media_tables.sql).
+The runner executes every SQL file in [`postgresql/migrations`](postgresql/migrations) in filename order from the pulled web image, records applied versions in `schema_migrations`, and stops immediately on errors. This keeps application code and migration SQL on the same image version during deployment, without requiring the deploy host working tree to be updated first.
+
+Media upload metadata is created for fresh databases by [`postgresql/init/06_add_media_tables.sql`](postgresql/init/06_add_media_tables.sql), and existing databases receive equivalent changes from the migration files bundled into the image.
 
 ### Main Tables
 
@@ -520,7 +522,7 @@ E2E tests require the application to be running at the expected base URL. Some s
 - Confirm that the file is one of `jpg`, `jpeg`, `png`, `webp`, or `gif`.
 - Confirm that the file size is within the configured upload limit.
 - Check web logs with `make logs-web`.
-- For existing databases, confirm that `make migrate` has been applied.
+- For existing databases, confirm that pending migrations have been applied with `make migrate`.
 - If deletion fails with `409`, remove the image reference from posts first so usage synchronization can clear it.
 
 ### Container Build Error

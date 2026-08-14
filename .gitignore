@@ -30,3 +30,6 @@ docker-compose.override.yml
 
 # Performance benchmark raw data
 tests/performance/results/*/*.txt
+
+# Local cookie data
+cookies.txt

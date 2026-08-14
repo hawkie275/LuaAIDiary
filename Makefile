@@ -109,8 +109,7 @@ redis-cli:
 # 既存DBへ未適用マイグレーションを適用
 migrate:
 	@echo "🗄️  データベースマイグレーションを実行中..."
-	$(DOCKER_COMPOSE) exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < postgresql/migrations/001_add_media_tables.sql
-	$(DOCKER_COMPOSE) exec -T db sh -c 'psql -v ON_ERROR_STOP=1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"' < postgresql/migrations/002_add_post_search_trgm_gin_index.sql
+	$(DOCKER_COMPOSE) run --rm --no-deps web /usr/local/bin/run-migrations.sh
 	@echo "✅ データベースマイグレーションが完了しました"
 
 # E2Eテストを実行（HTTP経由）

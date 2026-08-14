@@ -166,7 +166,7 @@ make shell-lua         # Web コンテナ内で Lua シェルを起動
 make shell-db          # DB コンテナのシェルを開く
 make psql              # PostgreSQL クライアントを開く
 make redis-cli         # Valkey/Redis CLI を開く
-make migrate           # 既存 DB にメディアテーブルマイグレーションを適用
+make migrate           # 既存 DB に未適用マイグレーションを適用
 make health            # /health を確認
 make status            # Docker Compose サービス状態を表示
 make db-reset          # 確認後に DB をリセット
@@ -362,13 +362,15 @@ curl http://localhost:8080/api/db-test
 
 ## データベース補足
 
-新規コンテナでは [`postgresql/init`](postgresql/init) 配下のスクリプトが実行されます。既存 DB にメディアテーブルを追加する場合は以下を実行します。
+新規 DB コンテナでは [`postgresql/init`](postgresql/init) 配下のスクリプトが実行されます。既存 DB の更新は、web image に同梱された migration runner で実行します。
 
 ```bash
 make migrate
 ```
 
-メディアアップロード用メタデータは [`postgresql/init/06_add_media_tables.sql`](postgresql/init/06_add_media_tables.sql) で作成され、既存 DB 向けの同等マイグレーションは [`postgresql/migrations/001_add_media_tables.sql`](postgresql/migrations/001_add_media_tables.sql) です。
+migration runner は、pull 済み web image 内の [`postgresql/migrations`](postgresql/migrations) にある SQL ファイルをファイル名順に実行し、適用済み version を `schema_migrations` に記録します。エラー時は即停止します。これにより、デプロイ時にアプリケーションコードと migration SQL の version が一致し、デプロイ先作業ツリーの更新や main branch の pull に依存しません。
+
+メディアアップロード用メタデータは新規 DB 向けには [`postgresql/init/06_add_media_tables.sql`](postgresql/init/06_add_media_tables.sql) で作成され、既存 DB には image に同梱された migration SQL から同等の変更が適用されます。
 
 ### 主なテーブル
 
@@ -520,7 +522,7 @@ E2E テストはアプリケーションが期待するベース URL で起動�
 - ファイル形式が `jpg`, `jpeg`, `png`, `webp`, `gif` のいずれかか確認する。
 - ファイルサイズがアップロード上限内か確認する。
 - `make logs-web` で Web ログを確認する。
-- 既存 DB の場合は `make migrate` 適用済みか確認する。
+- 既存 DB の場合は `make migrate` で未適用マイグレーションを適用済みか確認する。
 - 削除時に `409` になる場合は、先に投稿本文から画像参照を削除し、利用状況同期で参照を解消してください。
 
 ### コンテナビルドエラー

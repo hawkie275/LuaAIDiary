@@ -197,7 +197,6 @@ jobs:
 
           log "Checking required commands..."
           require_cmd docker
-          require_cmd make
           require_cmd sed
           if ! docker compose version >/dev/null 2>&1; then
             fail "required command not available: docker compose"
@@ -264,7 +263,7 @@ jobs:
           fi
 
           log "Running database migrations before restarting web service..."
-          if ! make migrate; then
+          if ! docker compose run --rm --no-deps web /usr/local/bin/run-migrations.sh; then
             fail "database migration failed"
           fi
 
