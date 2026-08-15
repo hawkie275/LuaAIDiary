@@ -1,7 +1,7 @@
 # ==========================================
 # 1. ビルド用ステージ（OpenResty + LuaJIT Plus + C拡張のコンパイルを実行）
 # ==========================================
-FROM alpine:3.22 AS builder
+FROM alpine:3.24 AS builder
 
 # OPENRESTY_VERSION=latest の場合は公式ダウンロードページから最新安定版を解決する。
 # 再現性を優先する場合は docker compose build --build-arg OPENRESTY_VERSION=1.31.1.1 のように固定できる。
@@ -119,7 +119,7 @@ RUN luarocks install lapis \
 # ==========================================
 # 2. 実行用ステージ（本番用の軽量イメージ）
 # ==========================================
-FROM alpine:3.22
+FROM alpine:3.24
 
 ARG APP_VERSION=Unknown
 ENV APP_VERSION=${APP_VERSION}
