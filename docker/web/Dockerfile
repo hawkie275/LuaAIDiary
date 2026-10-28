@@ -4,6 +4,7 @@
 FROM alpine:3.24 AS builder
 
 # OPENRESTY_VERSION=latest の場合は公式ダウンロードページから最新安定版を解決する。
+# 2026-10-28: 公開イメージ更新のため再ビルド（最新自動取得を維持し、1.31.8.1 の取得・ビルドを確認済み）。
 # 再現性を優先する場合は docker compose build --build-arg OPENRESTY_VERSION=1.31.1.1 のように固定できる。
 ARG OPENRESTY_VERSION=latest
 ARG LUAJIT_PLUS_REF=8cd19064101f46bf0ab713e5dab9d83a77e73909
