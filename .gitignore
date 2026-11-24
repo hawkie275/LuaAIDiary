@@ -1,5 +1,9 @@
 # Environment variables
 .env
+.infra-state/
+.luaaidiary-state/
+infra-backups/
+docker-compose.managed.json
 
 # Database data
 db_data/

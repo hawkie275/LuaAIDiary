@@ -70,7 +70,7 @@ LuaAIDiary は OpenResty、LuaJIT Plus、Lapis、PostgreSQL、Valkey で構成�
 - **言語**: Lua
 - **ランタイム/Web サーバー**: OpenResty + LuaJIT Plus + Nginx
 - **Web フレームワーク**: Lapis
-- **データベース**: PostgreSQL 18
+- **データベース**: PostgreSQL 19
 - **セッション/キャッシュストア**: Valkey 9
 - **テンプレート**: 管理画面は ETV Lua テンプレート、公開画面は Lua/公開表示用コード
 - **AI 統合**: Google Gemini API
@@ -109,7 +109,8 @@ LuaAIDiary/
 ### 前提条件
 
 - Docker 20.10+
-- Docker Compose 2.0+
+- Docker Compose 2.24.4+
+- Linux、Bash 5以上、jq 1.6以上、util-linux flock、GNU coreutils、Git、tar
 - Make（主要開発タスク用に推奨）
 
 Web イメージは Alpine 上で OpenResty をソースビルドし、同梱 LuaJIT を固定リビジョンの LuaJIT Plus に差し替えて Docker ビルドします。LuaJIT Plus は、OpenResty/LuaJIT の実行モデルを保ちながら `switch`/`case` などの拡張 Lua 構文を追加する LuaJIT フォークで、Web サーバー構成を変えずにより表現力の高い Lua コードへ対応できるようにします。
@@ -119,24 +120,30 @@ Web イメージは Alpine 上で OpenResty をソースビルドし、同梱 Lu
 ```bash
 git clone https://github.com/hawkie275/LuaAIDiary.git
 cd LuaAIDiary
+cp .env.example .env
+# パスワードを編集し、docs/infra-updates.mdの書込み遮断条件を確認する
+export INFRA_STATE_DIR=/srv/luaaidiary/state
+export INFRA_WRITERS_FENCED=1
 make setup
 ```
 
-`make setup` は、必要に応じて `.env.example` から `.env` を作成し、GHCR から最新 Web イメージを取得、`APP_VERSION` を同期、サービスを起動し、DB 起動を短時間待機します。
+`make setup` は**新規導入専用**です。image digestを解決・固定し、初期SQLとmigrationを公開前に実行してDB/Valkeyのhealthを確認します。既存環境や所有が不明なdata volumeは拒否します。PostgreSQL 19が未提供の場合は旧版へfallbackせず停止します。
 
-GHCR から取得せずローカルで Docker イメージをビルドする場合:
-
-```bash
-make setup-build
-```
-
-### 手動セットアップ
+既存環境（従来のPostgreSQL 18環境を含む）を更新する場合:
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
-sleep 10
+make infra-update
 ```
+
+先に[更新・復旧運用文書](docs/infra-updates.md)を確認してください。旧構成の標準DB/Valkey公開portは、手作業での停止・port除去なしで採用できます。CDが旧サービスを停止してからコピーし、新DB/Valkeyはホスト非公開、Webは公開で起動します。管理対象外writerや移行先data portのoverrideは拒否します。更新は旧volume/imageを残して別volumeへ復元します。CDもself-hosted runnerから同じ入口を呼び、Webと同commitの資材を配備し、ユーザー環境設定を保護します。`POSTGRES_DESIRED_VERSION=latest` で将来の安定メジャーにも追従し、CD再実行で希望版を再解決できます。[提供版の証跡・検証記録](docs/infra-validation.md)も参照してください。
+
+### 初期化後の通常起動
+
+```bash
+make up
+```
+
+通常起動は希望タグではなく固定したimage/volumeを使います。直接のCompose操作でこの固定を迂回しないでください。独自Webのローカルbuildはregistryへpushしてから `DEPLOY_WEB_IMAGE` で指定します。管理対象の初期化では `make setup-build` を意図的に無効化しています。
 
 ### アクセス URL
 
@@ -151,7 +158,8 @@ sleep 10
 ```bash
 make help              # 利用可能なコマンドを表示
 make setup             # GHCR の Web イメージを使った初期セットアップ
-make setup-build       # ローカル Docker ビルドで初期セットアップ
+make infra-update      # DB/Valkey/WebとSQL migrationの安全な停止更新
+make infra-recover     # 公開前だけ許可する明示的復旧
 make dev               # フォアグラウンドでサービス起動
 make build             # Docker イメージを no-cache でビルド
 make up                # バックグラウンドでサービス起動
@@ -492,10 +500,10 @@ Docker が起動しているか、`.env` が存在するか、必要なポート
 デフォルトのサービスポートは以下です。
 
 - Web: `8080`
-- PostgreSQL: `5432`
-- Valkey: `6379`
+- PostgreSQL: 内部 `5432` のみ（hostには非公開）
+- Valkey: 内部 `6379` のみ（hostには非公開）
 
-他プロセスが使用している場合は [`docker-compose.yml`](docker-compose.yml) のポートマッピングを変更してください。
+必要ならユーザーoverrideでWebのportを変更してください。DB/Valkeyのport公開は更新guardが拒否します。
 
 ### データベース接続エラー
 
@@ -532,7 +540,7 @@ make build
 make logs-web
 ```
 
-レジストリイメージを使う場合は `make setup`、ローカル Docker 変更を開発する場合は `make setup-build` を実行してください。
+新規導入は `make setup`、既存環境の更新は `make infra-update` を使用してください。ローカルでbuildしたWebは管理配備前にregistryへpushします。
 
 ## 関連ドキュメント
 
