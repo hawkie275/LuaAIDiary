@@ -70,7 +70,7 @@ The current implementation includes admin content management, authentication/aut
 - **Language**: Lua
 - **Runtime/Web server**: OpenResty + LuaJIT Plus + Nginx
 - **Web framework**: Lapis
-- **Database**: PostgreSQL 18
+- **Database**: PostgreSQL 19
 - **Session/cache store**: Valkey 9
 - **Templates**: ETV Lua templates for the admin UI and Lua/public rendering code
 - **AI integration**: Google Gemini API
@@ -109,7 +109,8 @@ LuaAIDiary/
 ### Prerequisites
 
 - Docker 20.10+
-- Docker Compose 2.0+
+- Docker Compose 2.24.4+
+- Linux, Bash 5+, jq 1.6+, util-linux flock, GNU coreutils, Git and tar
 - Make, recommended for common development tasks
 
 The web image builds OpenResty from source on Alpine and replaces the bundled LuaJIT with a pinned LuaJIT Plus revision during the Docker build. LuaJIT Plus is a LuaJIT fork that keeps the OpenResty/LuaJIT execution model while adding extended Lua syntax such as `switch`/`case`, making the runtime ready for more expressive Lua code without changing the web server architecture.
@@ -119,24 +120,30 @@ The web image builds OpenResty from source on Alpine and replaces the bundled Lu
 ```bash
 git clone https://github.com/hawkie275/LuaAIDiary.git
 cd LuaAIDiary
+cp .env.example .env
+# Edit passwords and read docs/infra-updates.md before confirming the writer fence.
+export INFRA_STATE_DIR=/srv/luaaidiary/state
+export INFRA_WRITERS_FENCED=1
 make setup
 ```
 
-`make setup` creates `.env` from `.env.example` if needed, pulls the latest web image from GHCR, synchronizes `APP_VERSION`, starts services, and waits briefly for the database.
+`make setup` explicitly initializes a **new** installation, resolves and pins image digests, runs init SQL and migrations before publication, and waits for data-service health. It refuses existing installations or unowned data volumes. PostgreSQL 19 must be available; there is no fallback to an older major.
 
-For a local image build instead of pulling from GHCR:
-
-```bash
-make setup-build
-```
-
-### Manual setup
+For an existing installation (including the former PostgreSQL 18 setup):
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
-sleep 10
+make infra-update
 ```
+
+Read the [upgrade and recovery runbook](docs/infra-updates.md) first: legacy standard DB/Valkey port bindings are accepted without manual service stops or port removal. CD stops the old services before copying data, then starts the new data services without host ports; Web remains public. Unmanaged writers and target data-port overrides are rejected. All updates retain old volumes/images and restore into separate volumes. The common entry point is also called by CD on a self-hosted runner, with matching commit materials and protected user configuration. `POSTGRES_DESIRED_VERSION=latest` opts into future stable majors; re-running CD resolves desired versions again. See [registry evidence and validation](docs/infra-validation.md).
+
+### Normal startup after initialization
+
+```bash
+make up
+```
+
+Normal startup uses pinned images and volumes, not desired tags. Do not bypass the pin with raw Compose commands. Local Web builds must be pushed to a registry before managed deployment; select them with `DEPLOY_WEB_IMAGE`. `make setup-build` is intentionally disabled for managed initialization.
 
 ### Access URLs
 
@@ -151,7 +158,8 @@ Default admin user data is initialized by the PostgreSQL scripts. Check [`postgr
 ```bash
 make help              # Show available commands
 make setup             # Initial setup using the GHCR web image
-make setup-build       # Initial setup with a local Docker build
+make infra-update      # Safe offline update of DB/Valkey/Web, including SQL migrations
+make infra-recover     # Explicit recovery only before publication
 make dev               # Start services in the foreground
 make build             # Build Docker images without cache
 make up                # Start services in the background
@@ -492,10 +500,10 @@ Check whether Docker is running, `.env` exists, and required ports are available
 The default service ports are:
 
 - Web: `8080`
-- PostgreSQL: `5432`
-- Valkey: `6379`
+- PostgreSQL: internal `5432` only (not published on the host)
+- Valkey: internal `6379` only (not published on the host)
 
-Change port mappings in [`docker-compose.yml`](docker-compose.yml) if another process already uses them.
+Change the Web mapping in a user override if needed. Publishing DB/Valkey ports is rejected by the update guard.
 
 ### Database Connection Error
 
@@ -532,7 +540,7 @@ make build
 make logs-web
 ```
 
-If using the registry image path, run `make setup`. If developing local Docker changes, run `make setup-build`.
+For a new registry-based installation use `make setup`; for an existing installation use `make infra-update`. Push locally built Web images to a registry before managed deployment.
 
 ## Related Documentation
 

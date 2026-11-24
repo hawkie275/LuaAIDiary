@@ -1,13 +1,34 @@
 .PHONY: help dev build up down restart logs logs-web logs-db logs-redis shell shell-lua shell-db psql redis-cli migrate test test-file test-integration test-e2e test-all db-reset lint clean setup-env setup setup-build sync-app-version health status
+.DEFAULT_GOAL := help
 
 # Docker Composeコマンド
-DOCKER_COMPOSE := docker compose
+DOCKER_COMPOSE := bash scripts/infra-update.sh compose
+
+.PHONY: infra-update infra-init infra-recover test-infra test-infra-docker
+infra-update:
+	bash scripts/infra-update.sh update
+
+infra-init:
+	bash scripts/infra-update.sh update --initialize
+
+infra-recover:
+	bash scripts/infra-update.sh recover
+
+test-infra:
+	bash tests/infra/test_unit.sh
+	bash tests/infra/test_deploy.sh
+
+test-infra-docker:
+	bash tests/infra/test_docker.sh
 
 # デフォルトターゲット
 help:
 	@echo "LuaAIDiary 開発環境 Makefile"
 	@echo ""
 	@echo "利用可能なコマンド:"
+	@echo "  make infra-update - DB/Valkey/Webをバックアップ付きで更新（書込み遮断確認必須）"
+	@echo "  make infra-recover - 公開前の失敗のみ旧データへ明示的に復旧"
+	@echo "  make test-infra / test-infra-docker - 更新処理の専用テスト"
 	@echo "  make dev        - 開発サーバーを起動（ホットリロード有効）"
 	@echo "  make build      - Dockerイメージをビルド"
 	@echo "  make up         - サービスを起動"
@@ -39,21 +60,20 @@ help:
 # 開発サーバー起動
 dev:
 	@echo "🚀 開発サーバーを起動中..."
-	$(DOCKER_COMPOSE) up
+	$(DOCKER_COMPOSE) up --no-build --pull never
 
 # Dockerイメージをビルド
 build:
 	@echo "🔨 Dockerイメージをビルド中..."
-	$(DOCKER_COMPOSE) build --no-cache
+	docker build --no-cache -t luaaidiary-web:dev -f docker/web/Dockerfile .
 
 # サービスを起動（バックグラウンド）
 up:
 	@echo "⬆️  サービスを起動中..."
-	$(DOCKER_COMPOSE) up -d
+	$(DOCKER_COMPOSE) up -d --no-build --pull never
 	@echo "✅ サービスが起動しました"
 	@echo "   Web: http://localhost:8080"
-	@echo "   PostgreSQL: localhost:5432"
-	@echo "   Valkey: localhost:6379"
+	@echo "   PostgreSQL / Valkey: internal network only"
 
 # サービスを停止
 down:
@@ -104,12 +124,12 @@ psql:
 # Redisクライアントに接続
 redis-cli:
 	@echo "📦 Redisクライアントに接続中..."
-	$(DOCKER_COMPOSE) exec redis redis-cli
+	$(DOCKER_COMPOSE) exec valkey valkey-cli
 
 # 既存DBへ未適用マイグレーションを適用
 migrate:
-	@echo "🗄️  データベースマイグレーションを実行中..."
-	$(DOCKER_COMPOSE) run --rm --no-deps web /usr/local/bin/run-migrations.sh
+	@echo "🗄️  隔離した新DBでmigrationを実行し、検証後に公開します..."
+	bash scripts/infra-update.sh update
 	@echo "✅ データベースマイグレーションが完了しました"
 
 # E2Eテストを実行（HTTP経由）
@@ -205,12 +225,7 @@ sync-app-version: setup-env
 
 # 初期セットアップ
 setup: setup-env
-	@echo "🎉 初期セットアップを開始..."
-	@echo "📦 GHCRから最新のWebイメージを取得中..."
-	$(DOCKER_COMPOSE) pull web
-	@make sync-app-version
-	@echo "ℹ️  ローカルビルドを行う場合は 'make setup-build' を使用してください"
-	@make up
+	$(MAKE) infra-init
 	@echo "⏳ データベースの起動を待機中..."
 	@sleep 10
 	@echo "✅ セットアップが完了しました！"
@@ -223,9 +238,8 @@ setup: setup-env
 
 # 初期セットアップ（ローカルビルド版）
 setup-build: setup-env
-	@echo "🎉 初期セットアップ（ローカルビルド）を開始..."
-	@make build
-	@make up
+	@echo "Managed initialization requires registry digests. Build/push Web first, then DEPLOY_WEB_IMAGE=... make setup."
+	@exit 1
 	@echo "⏳ データベースの起動を待機中..."
 	@sleep 10
 	@echo "✅ セットアップ（ローカルビルド）が完了しました！"

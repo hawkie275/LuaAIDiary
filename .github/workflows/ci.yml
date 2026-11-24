@@ -7,6 +7,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Disposable CI only: do not use these settings for managed deployments.
+    env:
+      COMPOSE_PROJECT_NAME: luaaidiary-ci
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
+      PG_IMAGE: postgres:19
+      VALKEY_IMAGE: valkey/valkey:latest
+      WEB_IMAGE: luaaidiary-web:ci
+      PG_DATA: /var/lib/postgresql/managed
+      PG_VOLUME: luaaidiary-ci-db
+      VALKEY_VOLUME: luaaidiary-ci-valkey
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +37,17 @@ jobs:
           REDIS_PORT=6379
           LAPIS_ENVIRONMENT=development
           ENCRYPTION_KEY=00000000000000000000000000000000
+          EOF
+          cat > docker-compose.ci.yml <<'EOF'
+          services:
+            db:
+              volumes:
+                - ./postgresql/init:/docker-entrypoint-initdb.d:ro
+          volumes:
+            db_data:
+              external: false
+            redis_data:
+              external: false
           EOF
 
       - name: Start services
