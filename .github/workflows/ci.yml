@@ -43,6 +43,9 @@ jobs:
             db:
               volumes:
                 - ./postgresql/init:/docker-entrypoint-initdb.d:ro
+              healthcheck:
+                # The init server only listens on a Unix socket; require the final TCP server.
+                test: ["CMD-SHELL", "PGPASSWORD=\"$${POSTGRES_PASSWORD}\" psql -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -v ON_ERROR_STOP=1 -c 'SELECT 1' > /dev/null"]
           volumes:
             db_data:
               external: false
@@ -51,7 +54,7 @@ jobs:
           EOF
 
       - name: Start services
-        run: docker compose up -d --build
+        run: docker compose up -d --build --wait --wait-timeout 120
 
       - name: Wait for services
         run: |
@@ -62,7 +65,7 @@ jobs:
             sleep 2
           done
           curl -sSf http://localhost:8080/health
-          curl -sSf http://localhost:8080/api/db-test
+          curl -sSf http://localhost:8080/api/db-test | jq -e '.status == "success"'
           curl -sSf http://localhost:8080/api/redis-test
 
       - name: Prepare test user
@@ -76,6 +79,10 @@ jobs:
           ADMIN_PASS: admin123
         run: |
           TEST_USERNAME=e2e_ci_user TEST_EMAIL=e2e_ci_user@test.com TEST_PASSWORD=TestPass123! bash tests/e2e/test_post_api.sh
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=200
 
       - name: Cleanup
         if: always()
