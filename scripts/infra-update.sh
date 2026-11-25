@@ -45,11 +45,14 @@ load_active() {
     done < <(jq -r 'to_entries[] | [.key,.value] | @tsv' "$STATE/active.json")
 }
 pin_compose() {
-    jq '{services:{db:{image:.PG_IMAGE,environment:{PGDATA:.PG_DATA}},valkey:{image:.VALKEY_IMAGE},web:{image:.WEB_IMAGE}},volumes:{db_data:{external:true,name:.PG_VOLUME},redis_data:{external:true,name:.VALKEY_VOLUME}}}' "$STATE/active.json" | atomic "$STATE/pinned-compose.json"
+    local version
+    version=$(docker image inspect "$(jq -r .WEB_IMAGE "$STATE/active.json")" |
+        jq -er '.[0].Config.Env[] | select(startswith("APP_VERSION=")) | ltrimstr("APP_VERSION=") | select(length>0)')
+    jq --arg version "$version" '{services:{db:{image:.PG_IMAGE,environment:{PGDATA:.PG_DATA}},valkey:{image:.VALKEY_IMAGE},web:{image:.WEB_IMAGE,environment:{APP_VERSION:$version}}},volumes:{db_data:{external:true,name:.PG_VOLUME},redis_data:{external:true,name:.VALKEY_VOLUME}}}' "$STATE/active.json" | atomic "$STATE/pinned-compose.json"
 }
 config_identity() {
     jq -S 'del(.services.web.image,.services.web.build,.services.db.image,.services.valkey.image,
-        .services.db.environment.PGDATA,.volumes.db_data.name,.volumes.redis_data.name,."x-infra")'
+        .services.web.environment.APP_VERSION,.services.db.environment.PGDATA,.volumes.db_data.name,.volumes.redis_data.name,."x-infra")'
 }
 pull_image() {
     docker pull "$1" >&2

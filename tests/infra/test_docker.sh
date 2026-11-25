@@ -6,7 +6,7 @@ WORK=$(mktemp -d /tmp/luaaidiary-infra-test.XXXXXX)
 COMPOSE_PROJECT_NAME=infra-test-$(date +%s)-$RANDOM
 export COMPOSE_PROJECT_NAME
 export INFRA_ROOT=$WORK/release INFRA_STATE_DIR=$WORK/state INFRA_ENV_FILE=$WORK/env
-export INFRA_OVERRIDE=$WORK/override.yml DEPLOY_WEB_IMAGE=nginx:alpine
+export INFRA_OVERRIDE=$WORK/override.yml DEPLOY_WEB_IMAGE=ghcr.io/hawkie275/luaaidiary:v0.8.1
 unset INFRA_WRITERS_FENCED
 mkdir -p "$INFRA_ROOT/scripts" "$INFRA_ROOT/docker/web"
 cp "$ROOT/docker-compose.yml" "$INFRA_ROOT/"
