@@ -144,11 +144,19 @@ DNS等のユーザー設定はこのoverrideに残します。旧 `LOCAL_DNS` �
 通常のmerge/CDだけでWeb/DB/Valkeyを更新します。writer宣言や追加のGitHub変数は不要です。
 
 - Webをbuildしたcommitと同じCompose/scripts/docker/web/init SQL/migrationsを新release directoryへGit archiveで配備。
+  ただし更新エントリ `scripts/infra-update.sh` のみworkflow実行refのものを使用します。
   `.env` とユーザーoverrideをコピー・上書きせず、その外部ファイルを読みます。
+  最終固定定義のWeb `APP_VERSION` は対象imageの `Config.Env` から取得します。
+  旧overrideの版は上書きしますがDNS等は保持し、旧active snapshotや明示recoverでも対象imageの版を使用します。
+  版が欠落・空の場合は取得失敗とし、推測版やfallbackは使用しません。
 - state/backupは `DEPLOY_PATH/state`、releaseは `DEPLOY_PATH/releases`。checkout cleanupの影響を受けません。
 - 同一concurrency group、cancel-in-progress=false。進行中配備を新ジョブがcancelしません。
   GitHubのconcurrencyは全pendingジョブをFIFOで保証するものではありません。
 - 手動workflow_dispatchのrelease_tagに既存 `vX.Y.Z` を指定すると、そのtagのcommitとWebを照合して同じ入口を実行。
+  修正済みworkflowのrefを選択して既存 `v0.8.1` を指定すれば、Webを再buildせず新しい更新スクリプトを適用できます。
+  Compose/docker/web/SQL等は指定tag由来のままで、OCI revision一致検証も維持します。
+  通常のPR mergeでは `no_build` ラベルがない限り従来通り自動buildされます。
+  `no_build` でmergeした場合は自動配備も行われないため、上記の手動入口を使用します。
   この仕組み導入前でrevisionラベルのないWebは拒否します。導入後のreleaseを使用してください。
 - 手動インフラ更新も希望タグを毎回解決します。Webは同じreleaseのまま、DB/Valkeyだけ最新版に追従できます。
 - Actions上の実配備や本番資産の更新は開発テストには含めません。
@@ -184,6 +192,7 @@ The real Docker tests use an isolated random project and never touch existing pr
 ### Release入力
 
 PR mergeにはbump_major / bump_minor / bump_patchラベルと既存semverタグを使用する。
-手動実行は指定release_tag、mergeはbuildと同じcommitをcheckoutする。
+手動実行はworkflow実行refをcheckoutし、指定release_tagからimageに対応する資材をarchiveする。
+更新スクリプトだけはworkflow実行refを使用する。mergeはbuildと同じcommitをcheckoutする。
 配備先・Web image・Compose projectと希望版は明示値を使用し、fallbackしない。
 タグ作成の失敗はそのまま伝播する。

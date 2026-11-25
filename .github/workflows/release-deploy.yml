@@ -155,11 +155,13 @@ jobs:
     env:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
       DEPLOY_WEB_IMAGE: ghcr.io/hawkie275/luaaidiary:${{ inputs.release_tag }}
+      DEPLOY_RELEASE_REF: refs/tags/${{ inputs.release_tag }}
       COMPOSE_PROJECT_NAME: luaaidiary
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag }}
+          ref: ${{ github.sha }}
+          fetch-depth: 0
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io

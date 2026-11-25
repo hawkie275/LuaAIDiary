@@ -31,10 +31,18 @@ git -C "$tmp/repo" init -q
 git -C "$tmp/repo" add .
 git -C "$tmp/repo" -c user.name=fixture -c user.email=fixture@example.invalid commit -qm fixture
 expected=$(git -C "$tmp/repo" rev-parse HEAD)
+git -C "$tmp/repo" tag fixture-release
+# The workflow checkout has a newer updater, but application materials stay tagged.
+echo 'wrong HEAD compose' > "$tmp/repo/docker-compose.yml"
+echo 'echo current-updater > "$INFRA_STATE_DIR/updater"' >> "$tmp/repo/scripts/infra-update.sh"
+git -C "$tmp/repo" add .
+git -C "$tmp/repo" -c user.name=fixture -c user.email=fixture@example.invalid commit -qm updater
 unset INFRA_WRITERS_FENCED
 export DEPLOY_PATH=$tmp/deploy DEPLOY_WEB_IMAGE=fixture:tag COMPOSE_PROJECT_NAME=fixture
+export DEPLOY_RELEASE_REF=refs/tags/fixture-release
 (cd "$tmp/repo" && bash "$ROOT/scripts/deploy-release.sh")
 [[ $(cat "$tmp/deploy/state/observed-commit") == "$expected" ]]
+[[ $(cat "$tmp/deploy/state/updater") == current-updater ]]
 [[ $(cat "$tmp/deploy/current/docker-compose.yml") == 'matching compose' ]]
 cmp "$tmp/expected-env" "$tmp/deploy/.env"
 cmp "$tmp/expected-override" "$tmp/deploy/docker-compose.override.yml"
