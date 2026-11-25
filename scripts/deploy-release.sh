@@ -7,7 +7,6 @@ for command in git docker bash jq flock sync tar realpath; do
 done
 : "${DEPLOY_PATH:?Set an absolute durable deployment directory outside Actions checkout}"
 : "${DEPLOY_WEB_IMAGE:?Set the released Web image}"
-: "${INFRA_WRITERS_FENCED:?Read docs/infra-updates.md before enabling deployment}"
 [[ $DEPLOY_PATH == /* ]] || { echo 'DEPLOY_PATH must be absolute' >&2; exit 1; }
 checkout=$(git rev-parse --show-toplevel)
 deploy=$(realpath -m "$DEPLOY_PATH")

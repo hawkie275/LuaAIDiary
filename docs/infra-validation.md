@@ -1,6 +1,7 @@
 # インフラ更新の提供版確認・検証記録
 
-確認日: 2026-11-24 UTC。実環境: Linux arm64 / Debian 13、Docker Engine 29.10.0、
+最新の追検証日: 2026-11-25 UTC（末尾参照）。以下の初回確認日: 2026-11-24 UTC。
+実環境: Linux arm64 / Debian 13、Docker Engine 29.10.0、
 Docker Compose 5.8.0、jq 1.7、util-linux 2.41.5、GNU coreutils 9.7。
 
 ## 公式レジストリ提供状況
@@ -92,7 +93,8 @@ Valkey 9.2の標準Lua moduleを外部moduleと誤認するguardも実Dockerで�
 - 未完了journalの拒否を確認したが、全命令境界でのSIGKILL、実host電源断、disk full、
   大規模DB、外部writerとの競合、復旧中の再故障の網羅試験は未実行。
 - 原子的設定置換とsyncはLinuxローカルfilesystem前提。NFSや複数host運用には対応しない。
-- 既存の標準公開DB/Valkey portはCD内で停止して採用可能（下記追検証を参照）。書込み遮断宣言、
+- 既存の標準公開DB/Valkey portはCD内で停止して採用可能（下記追検証を参照）。
+  標準構成では書込み遮断宣言は不要で、停止・隔離の実状態を検査する。
   固定project/専用Unixユーザー/外部state、backupの機密性と容量をレビューすること。
 - 未pushのローカルWeb imageによる管理起動は非対応。従来のsetup-build経路は安全上停止する。
 - 公開後の旧volumeへの自動巻戻しは禁止。未対応DB/Valkeyカスタマイズは別の移行計画が必要。
@@ -154,3 +156,55 @@ PG19は実移行済み。PG20は未提供のため **19→20の実移行は未�
 確認した。このhostでの更新・起動は成功したが、正規registry名を選択する改善案は利用者が追加変更を
 希望しなかったため未適用。stateだけを別hostへ移してpullできることは保証しない。
 単一host前提とimage/backup保持を守り、他host復旧には正規registry digestの別途確認が必要。
+
+## 最新変更の最終追検証（2026-11-25 00:59〜01:14 UTC）
+
+対象ブランチ: feat/safe-postgres19-valkey-infra-updates。
+上記の18項目・24項目は過去の実行記録であり、今回の確定ファイルでの実測は以下のとおり。
+
+| 検査 | 今回の結果 |
+|---|---|
+| Bash構文検査（scripts / tests/infra / migration runner） | 成功 |
+| git diff --check | 成功 |
+| ShellCheck（koalaman/shellcheck:stable、読取り専用mount、network none） | 対象Shell全ファイルで成功 |
+| actionlint（rhysd/actionlint:latest） | 変更対象の[release-deploy workflow](../.github/workflows/release-deploy.yml)で成功 |
+| [単体・障害系](../tests/infra/test_unit.sh) | **29項目成功** |
+| [隔離Git配備試験](../tests/infra/test_deploy.sh) | 宣言なし・旧宣言値0、同commit資材、環境/override保護、失敗伝播、公開ポインタ維持に成功 |
+| [専用Docker試験](../tests/infra/test_docker.sh) | **01:08:17〜01:13:21 UTC、終了コード0、全項目成功** |
+
+最初は未変更の[CI workflow](../.github/workflows/ci.yml:57)もactionlintに渡したが、
+57行・69行の既存ループ変数にShellCheck SC2034（未使用）警告が出て終了コード1になった。
+今回の範囲外として修正せず、変更対象workflowを単独で再実行して成功を確認した。
+今回の検証で対象実装・試験の追加修正は不要だった。
+
+### 今回確認した安全性と更新経路
+
+- 書込み遮断宣言を要求せず、停止状態・restart無効・終了コード0・OOMなしを実検査する。
+  原本をコピー前と隔離移行完了後の切替・公開前に再確認する。
+- 単体試験では最終境界でのWeb再起動・OOM、停止コマンド失敗、強制終了、
+  TERM時の全旧サービス停止試行、停止段階を所有しない処理の無操作も確認した。
+- 実Dockerで未知network peer / volume writer拒否、停止コマンド失敗・TERM時の
+  全旧サービス停止とrestart無効、通常再開拒否、データを保持した明示復旧に成功。
+- 旧標準公開port構成からの移行失敗時の安全停止・非公開復旧、および
+  PostgreSQL 18→19、Valkey 9.0.0→9.2.0の移行に成功。
+  role・owner・sequence・migration・session TTL・旧volumeの保持を確認した。
+- 同major更新と、DB/Valkeyの目標imageを変えないWebのみの目標image変更に成功。
+  後者も共通のバックアップ付き更新経路を使い、DB/Valkeyの固定imageとデータを保持した。
+- 追加DB・downgrade・未提供版を拒否。SQL失敗時の安全停止・中断後の通常起動拒否・
+  公開前の明示復旧・公開意図記録後のrollback禁止も成功。
+
+### 隔離・証跡・未検証
+
+- 専用project: infra-test-1795568897-23626。既存利用者サービスへの停止・再作成・更新は実施していない。
+  前後のinspect比較で既存3サービスのID・状態（起動時刻を含む）・restart設定・port・mountが一致。
+  定期実行で変わるhealth履歴だけを比較対象から除外した。
+- 後片付け後、この専用prefixのコンテナ・volume・networkは残存なし。
+  試験が保持用に作るimageタグとcheckout外の証跡は保持した。
+- ログ・既存サービス前後比較: /tmp/luaaidiary-final-validation-20261125/。
+  Docker試験のjournal・dump・障害注入ログ: /tmp/luaaidiary-infra-test.ujzsO6/。
+  証跡には機密情報が含まれ得るため公開しない。
+- UI変更はなく、今回の画面・Chrome確認、アプリ全機能、本番CD、既存利用者環境での更新は未実施。
+  Webにはnginxの専用fixtureを使用した。PG19→20、実host電源断、SIGKILL、disk full、
+  大規模DB等の既記載の未検証事項も引き続き対象外。
+- 既知の複数RepoDigests選択問題は変更・解決していない。
+  commit・push・PR作成は実施していない（配備試験内部の使い捨てGit fixtureのcommitのみ）。

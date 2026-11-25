@@ -6,7 +6,8 @@ WORK=$(mktemp -d /tmp/luaaidiary-infra-test.XXXXXX)
 COMPOSE_PROJECT_NAME=infra-test-$(date +%s)-$RANDOM
 export COMPOSE_PROJECT_NAME
 export INFRA_ROOT=$WORK/release INFRA_STATE_DIR=$WORK/state INFRA_ENV_FILE=$WORK/env
-export INFRA_OVERRIDE=$WORK/override.yml INFRA_WRITERS_FENCED=1 DEPLOY_WEB_IMAGE=nginx:alpine
+export INFRA_OVERRIDE=$WORK/override.yml DEPLOY_WEB_IMAGE=nginx:alpine
+unset INFRA_WRITERS_FENCED
 mkdir -p "$INFRA_ROOT/scripts" "$INFRA_ROOT/docker/web"
 cp "$ROOT/docker-compose.yml" "$INFRA_ROOT/"
 cp "$ROOT/scripts/infra-update.sh" "$INFRA_ROOT/scripts/"
@@ -82,6 +83,37 @@ if update >"$WORK/writer.log" 2>&1; then exit 1; fi
 grep -q 'unexpected data volume user' "$WORK/writer.log"
 docker rm -f "$COMPOSE_PROJECT_NAME-writer" >/dev/null
 echo 'PASS unknown network and volume writer rejection'
+# Inject faults only into this disposable test's subprocess, never the daemon.
+mkdir -p "$WORK/bin"
+export INFRA_TEST_DOCKER
+INFRA_TEST_DOCKER=$(command -v docker)
+cat > "$WORK/bin/docker" <<'EOF'
+#!/usr/bin/env bash
+set -eu
+if [[ $1 == stop && ! -e $INFRA_TEST_FAULT_MARKER ]]; then
+    touch "$INFRA_TEST_FAULT_MARKER"
+    if [[ $INFRA_TEST_FAULT == term ]]; then kill -TERM "$PPID"; fi
+    exit 42
+fi
+exec "$INFRA_TEST_DOCKER" "$@"
+EOF
+chmod +x "$WORK/bin/docker"
+for fault in stop-failure term; do
+    if PATH="$WORK/bin:$PATH" INFRA_TEST_FAULT=$fault INFRA_TEST_FAULT_MARKER="$WORK/$fault.marker" \
+        update >"$WORK/$fault.log" 2>&1; then exit 1; fi
+    [[ -f $WORK/$fault.marker ]]
+    [[ $(jq -r .phase "$INFRA_STATE_DIR/transaction.json") == stopping ]]
+    for name in db valkey web; do
+        id=$(jq -r --arg name "$name" '.old[$name].Id' "$INFRA_STATE_DIR/transaction.json")
+        docker inspect "$id" | jq -e '.[0] | .State.Running==false and .HostConfig.RestartPolicy.Name=="no"' >/dev/null
+    done
+    if dc up -d >"$WORK/$fault-resume.log" 2>&1; then exit 1; fi
+    grep -q 'unfinished transaction' "$WORK/$fault-resume.log"
+    bash "$INFRA_ROOT/scripts/infra-update.sh" recover
+    [[ $(psql_fixture 'SELECT payload FROM retained') == preserved ]]
+    [[ $(dc exec -T valkey valkey-cli GET session:infra-test) == retained ]]
+    echo "PASS $fault before copy: fail closed, blocked resume, retained data and explicit recovery"
+done
 # Failure while adopting published legacy services must close all old endpoints.
 echo 'SELECT deliberately_missing_function();' > "$INFRA_ROOT/postgresql/migrations/999_failure.sql"
 if update >"$WORK/legacy-failure.log" 2>&1; then exit 1; fi
@@ -121,6 +153,17 @@ update
 [[ $(jq -r .PG_VOLUME "$INFRA_STATE_DIR/active.json") != "$previous" ]]
 docker volume inspect "$previous" >/dev/null
 echo 'PASS same-major recovery copy'
+# Only the desired Web image changes; unchanged data-image targets must not
+# require a declaration or a special deployment path.
+previous_pg_image=$(jq -r .PG_IMAGE "$INFRA_STATE_DIR/active.json")
+previous_vk_image=$(jq -r .VALKEY_IMAGE "$INFRA_STATE_DIR/active.json")
+DEPLOY_WEB_IMAGE=nginx:stable-alpine update
+[[ $(jq -r .PG_IMAGE "$INFRA_STATE_DIR/active.json") == "$previous_pg_image" ]]
+[[ $(jq -r .VALKEY_IMAGE "$INFRA_STATE_DIR/active.json") == "$previous_vk_image" ]]
+[[ $(psql_fixture 'SELECT payload FROM retained') == preserved ]]
+[[ $(dc exec -T valkey valkey-cli GET session:infra-test) == retained ]]
+[[ $(jq -r .phase "$INFRA_STATE_DIR/transaction.json") == complete ]]
+echo 'PASS Web-only desired-image update with unchanged data images and preserved data'
 # Unsupported extra database must fail before stopping Web.
 psql_fixture 'CREATE DATABASE unsupported_extra'
 if update >"$WORK/extra-db.log" 2>&1; then exit 1; fi

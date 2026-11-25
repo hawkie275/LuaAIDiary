@@ -121,9 +121,8 @@ Web イメージは Alpine 上で OpenResty をソースビルドし、同梱 Lu
 git clone https://github.com/hawkie275/LuaAIDiary.git
 cd LuaAIDiary
 cp .env.example .env
-# パスワードを編集し、docs/infra-updates.mdの書込み遮断条件を確認する
+# パスワードを編集し、docs/infra-updates.mdの対応する単一Compose構成を確認する（writer宣言は不要）
 export INFRA_STATE_DIR=/srv/luaaidiary/state
-export INFRA_WRITERS_FENCED=1
 make setup
 ```
 
@@ -135,7 +134,7 @@ make setup
 make infra-update
 ```
 
-先に[更新・復旧運用文書](docs/infra-updates.md)を確認してください。旧構成の標準DB/Valkey公開portは、手作業での停止・port除去なしで採用できます。CDが旧サービスを停止してからコピーし、新DB/Valkeyはホスト非公開、Webは公開で起動します。管理対象外writerや移行先data portのoverrideは拒否します。更新は旧volume/imageを残して別volumeへ復元します。CDもself-hosted runnerから同じ入口を呼び、Webと同commitの資材を配備し、ユーザー環境設定を保護します。`POSTGRES_DESIRED_VERSION=latest` で将来の安定メジャーにも追従し、CD再実行で希望版を再解決できます。[提供版の証跡・検証記録](docs/infra-validation.md)も参照してください。
+先に[更新・復旧運用文書](docs/infra-updates.md)を確認してください。旧構成の標準DB/Valkey公開portは、手作業での停止・port除去なしで採用できます。CDが旧サービスを停止してからコピーし、新DB/Valkeyはホスト非公開、Webは公開で起動します。標準構成ではwriter宣言や追加GitHub変数は不要で、旧宣言設定が残っていても無視します。切替直前に全原本の停止・restart無効を再確認します。管理対象外writerや移行先data portのoverrideは拒否します。更新は旧volume/imageを残して別volumeへ復元します。CDもself-hosted runnerから同じ入口を呼び、Webと同commitの資材を配備し、ユーザー環境設定を保護します。`POSTGRES_DESIRED_VERSION=latest` で将来の安定メジャーにも追従し、CD再実行で希望版を再解決できます。[提供版の証跡・検証記録](docs/infra-validation.md)も参照してください。
 
 ### 初期化後の通常起動
 
