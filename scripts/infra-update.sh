@@ -137,32 +137,6 @@ fingerprint() {
 mount_name() {
     jq -er --arg target "$2" '[.Mounts[] | select(.Destination==$target and .Type=="volume")] | select(length==1) | .[0].Name' <<< "$1"
 }
-guard_container() {
-    local item=$1 destination=$2 network image port=6379/tcp
-    [[ $destination != /var/lib/postgresql ]] || port=5432/tcp
-    # Legacy standard port bindings are fenced by stopping the original container,
-    # not by a live reconfiguration. Target Compose still forbids all data ports.
-    jq -e --arg port "$port" '(.HostConfig.NetworkMode!="host") and
-        (.HostConfig.NetworkMode | startswith("container:") | not) and
-        (.HostConfig.PublishAllPorts!=true) and
-        all((.HostConfig.PortBindings // {} | keys[]); .==$port)' <<< "$item" >/dev/null || die 'unsupported data port/network configuration'
-    jq -e --arg dest "$destination" 'all(.Mounts[]; .Destination==$dest or (.Destination=="/docker-entrypoint-initdb.d" and .RW==false))' <<< "$item" >/dev/null || die 'unsupported extra data mount'
-    image=$(docker image inspect "$(jq -r .Image <<< "$item")")
-    jq -e --argjson image "$image" '.Config.Cmd==$image[0].Config.Cmd and .Config.Entrypoint==$image[0].Config.Entrypoint' <<< "$item" >/dev/null || die 'custom data service command unsupported'
-    while read -r network; do
-        docker network inspect "$network" | jq -e --argjson allowed "$OLD" \
-            '($allowed | [.[] | select(.!=null) | .Id]) as $ids | all(.[0].Containers // {} | keys[]; . as $id | $ids | index($id))' >/dev/null || die "unexpected network peer: $network"
-    done < <(jq -r '.NetworkSettings.Networks | keys[]' <<< "$item")
-}
-guard_volume_users() {
-    local volume id ids
-    for volume in "$@"; do
-        ids=$(docker ps -aq --no-trunc --filter "volume=$volume")
-        while read -r id; do
-            [[ -z $id || $id == "$DB_ID" || $id == "$VK_ID" ]] || die "unexpected data volume user: $volume ($id)"
-        done <<< "$ids"
-    done
-}
 fail_closed() {
     local status=$? id
     trap - EXIT
@@ -212,11 +186,6 @@ recover() {
     for name in "$tx-source" "$tx-target" "$tx-cache"; do
         if docker inspect "$name" >/dev/null 2>&1; then docker stop --time 120 "$name" >/dev/null; fi
     done
-    # Recovery also derives safety from actual volume users, never the obsolete
-    # writer declaration. Unknown users (including stopped ones) remain forbidden.
-    DB_ID=$(jq -r .db.Id <<< "$old"); VK_ID=$(jq -r .valkey.Id <<< "$old")
-    guard_volume_users "$(mount_name "$(jq .db <<< "$old")" /var/lib/postgresql)" \
-        "$(mount_name "$(jq .valkey <<< "$old")" /data)"
     # Source images/actual data mounts were recorded before any mutation.
     jq '{PG_IMAGE:.db.Image,VALKEY_IMAGE:.valkey.Image,WEB_IMAGE:.web.Image,
         PG_VOLUME:(.db.Mounts[]|select(.Destination=="/var/lib/postgresql")|.Name),
@@ -224,7 +193,7 @@ recover() {
         PG_DATA:(.db.Config.Env[]|select(startswith("PGDATA="))|ltrimstr("PGDATA="))}' <<< "$old" | atomic "$STATE/active.json"
     load_active; pin_compose
     COMPOSE+=(-f "$STATE/pinned-compose.json")
-    compose up -d --no-build --pull never --wait db valkey
+    compose up -d --no-deps --no-build --pull never --wait db valkey
     phase publishing-recovery
     compose up -d --no-deps --no-build --pull never --wait web
     cp "$journal" "$(jq -r .backup "$journal")/recovery.json"
@@ -265,13 +234,12 @@ main() {
         compose "$@"; return
     fi
     [[ $action == update && $# == 0 ]] || die 'usage: infra-update.sh update [--initialize] | compose ARGS'
-    # Legacy INFRA_WRITERS_FENCED values are ignored. Safety comes from measured
-    # container/volume isolation and clean offline boundaries, not a declaration.
+    # Legacy INFRA_WRITERS_FENCED values are ignored. Stop only the update targets;
+    # other containers and direct writers to their volumes are not inspected.
     local config db valkey web pg_want vk_want pg_version vk_version old_pg old_vk old_data old_version image
     config=$(compose config --format json)
-    jq -e '(.services | keys | sort)==["db","valkey","web"] and all(.services.db,.services.valkey; ((.ports // [])|length)==0 and .network_mode==null and .command==null and .entrypoint==null)' <<< "$config" >/dev/null || die 'unsupported Compose services/ports/command/network override'
-    jq -e '.services.db.volumes | length==1 and .[0].type=="volume" and .[0].source=="db_data" and .[0].target=="/var/lib/postgresql"' <<< "$config" >/dev/null || die 'DB volume override unsupported'
-    jq -e '.services.valkey.volumes | length==1 and .[0].type=="volume" and .[0].source=="redis_data" and .[0].target=="/data"' <<< "$config" >/dev/null || die 'Valkey volume override unsupported'
+    jq -e '.services.db.volumes | map(select(.target=="/var/lib/postgresql")) | length==1 and .[0].type=="volume" and .[0].source=="db_data"' <<< "$config" >/dev/null || die 'DB volume override unsupported'
+    jq -e '.services.valkey.volumes | map(select(.target=="/data")) | length==1 and .[0].type=="volume" and .[0].source=="redis_data"' <<< "$config" >/dev/null || die 'Valkey volume override unsupported'
     jq -e --arg pg "$PG_VOLUME" --arg vk "$VALKEY_VOLUME" '.volumes.db_data.name==$pg and .volumes.redis_data.name==$vk' <<< "$config" >/dev/null || die 'data volume name override unsupported; use actual existing containers for adoption'
     DB_USER=$(jq -er .services.db.environment.POSTGRES_USER <<< "$config")
     DB_NAME=$(jq -er .services.db.environment.POSTGRES_DB <<< "$config")
@@ -287,14 +255,11 @@ main() {
         done
     else
         [[ $valkey != null && $initialize == no ]] || die 'partial/existing installation cannot be initialized'
-        guard_container "$db" /var/lib/postgresql
-        guard_container "$valkey" /data
         old_pg=$(mount_name "$db" /var/lib/postgresql)
         old_vk=$(mount_name "$valkey" /data)
         old_data=$(jq -er '.Config.Env[] | select(startswith("PGDATA=")) | ltrimstr("PGDATA=")' <<< "$db")
         [[ $old_data == /var/lib/postgresql/* && $old_data != *..* ]] || die 'unknown PGDATA'
         DB_ID=$(jq -r .Id <<< "$db"); VK_ID=$(jq -r .Id <<< "$valkey")
-        guard_volume_users "$old_pg" "$old_vk"
         old_version=$(docker exec "$DB_ID" cat "$old_data/PG_VERSION")
         [[ $old_version =~ ^[0-9]+$ ]] || die 'unknown nonempty PostgreSQL layout'
         [[ $(sql "$DB_ID" 'SHOW data_directory') == "$old_data" ]] || die 'PGDATA differs from live data directory'
@@ -308,8 +273,8 @@ main() {
         [[ $(docker exec "$VK_ID" valkey-cli INFO cluster | tr -d '\r' | grep '^cluster_enabled:') == cluster_enabled:0 ]] || die 'Valkey cluster unsupported'
         docker exec "$VK_ID" valkey-cli --json MODULE LIST | jq -e 'all(.[]; .name=="lua" and .path=="lua" and .ver==1 and .args==[])' >/dev/null || die 'external Valkey modules unsupported'
     fi
-    pg_want=$(jq -r '."x-infra".postgres // "19"' <<< "$config")
-    vk_want=$(jq -r '."x-infra".valkey // "latest"' <<< "$config")
+    pg_want=$(jq -er '."x-infra".postgres | strings | select(length>0)' <<< "$config") || die 'missing desired PostgreSQL version'
+    vk_want=$(jq -er '."x-infra".valkey | strings | select(length>0)' <<< "$config") || die 'missing desired Valkey version'
     [[ $pg_want =~ ^(latest|[0-9]+(\.[0-9]+)*)$ && $vk_want =~ ^(latest|[0-9]+(\.[0-9]+)*)$ ]] || die 'stable numeric tag or latest required'
     NEXT_PG=$(pull_image "postgres:$pg_want")
     NEXT_VK=$(pull_image "valkey/valkey:$vk_want")
@@ -345,11 +310,6 @@ main() {
         [[ -z $image ]] || docker tag "$image" "luaaidiary-retained:$TX-$name"
     done
     sync -f "$BACKUP"
-    if [[ $db != null ]]; then
-        guard_container "$db" /var/lib/postgresql
-        guard_container "$valkey" /data
-        guard_volume_users "$old_pg" "$old_vk"
-    fi
     FENCING=yes
     phase stopping
     local id name source
@@ -359,7 +319,6 @@ main() {
         [[ $(docker exec "$VK_ID" valkey-cli SAVE) == OK ]] || die 'Valkey SAVE failed'
         stop_clean "$DB_ID"; stop_clean "$VK_ID"
         assert_sources_offline
-        guard_volume_users "$old_pg" "$old_vk"
         phase offline
         source=$TX-source
         copy_volume "$old_pg" "$source"
@@ -406,18 +365,13 @@ main() {
     # Recheck the originals after the entire isolated migration, before changing
     # runtime pins or allowing Compose to replace any original container.
     assert_sources_offline
-    if [[ $db != null ]]; then
-        guard_volume_users "$old_pg" "$old_vk"
-        guard_container "$db" /var/lib/postgresql
-        guard_container "$valkey" /data
-    fi
     phase validated
     jq .target "$STATE/transaction.json" | atomic "$STATE/active.json"
     load_active
     pin_compose
     COMPOSE+=(-f "$STATE/pinned-compose.json")
     phase switching
-    compose up -d --no-build --pull never --wait db valkey
+    compose up -d --no-deps --no-build --pull never --wait db valkey
     # Durable point of no automatic return, BEFORE anything can accept Web traffic.
     phase publishing
     compose up -d --no-deps --no-build --pull never --wait web

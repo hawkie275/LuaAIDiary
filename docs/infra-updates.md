@@ -23,12 +23,12 @@ Docker socketへのアクセスはroot相当の権限です。専用の信頼で
 
 ## 対応範囲・運用上の必須条件
 
-- 固定projectの単一Compose（web/db/valkeyだけ）、単一Docker host、単一運用Unixユーザー。
+- 固定projectの単一Compose（更新対象はweb/db/valkey）、単一Docker host、単一運用Unixユーザー。
   `COMPOSE_PROJECT_NAME=luaaidiary` が既定です。既存コンテナのCompose projectラベルと一致させます。
   CDのprojectも固定しています。異なる既存projectを使っている場合は導入前に設定を揃えてください。
 - DBは `/var/lib/postgresql` を親としてmountしたローカルnamed volume、実PGDATAはその配下。
   コンテナの実mount、実PGDATA、PG_VERSION、サーバーdata_directoryを確認します。
-  コンテナ不在の既存volume、bind mount、追加mount、不明なレイアウトは推測せず停止します。
+  コンテナ不在の既存volume、データ本体のbind mount、不明なレイアウトは推測せず停止します。
 - アプリDBひとつと標準のpostgres/template DB。設定ユーザーは元のinitdb管理role（OID 10）であること。
   追加DB、追加template、独自tablespace、prepared transaction、replication slot、publication、subscription、
   foreign server、標準以外の拡張は検出して停止します。対応拡張はplpgsqlとpg_trgm。
@@ -39,17 +39,21 @@ Docker socketへのアクセスはroot相当の権限です。専用の信頼で
   migration履歴は通常の完全dump/restoreで保存します。初期管理roleのCREATE文1件だけを除外し、
   そのALTER文やGRANTは除外しません。復元前後の行数・sequence値/状態・所有者・拡張名を照合します。
 - Valkeyは単一master、replicaなし、cluster/外部moduleなし（標準Lua moduleは許可）、AOFなし、標準 `/data/dump.rdb`。
-  カスタムcommand/entrypointは拒否します。独自ACL・CONFIG変更・永続化設定を使う構成は対象外です。
+  独自ACL・CONFIG変更・永続化設定を使う構成は対象外です。
   SAVE成功後に正常停止し、別volumeへ全ファイルをコピーします。RDBの絶対期限を維持するためsession TTLは
   更新中も経過します。期限切れセッションが復活することはありません。
-- **標準単一Compose構成は自動でwriterを停止・隔離します。** 全image準備後、旧Web/DB/Valkeyの
+- **更新対象のWeb/DB/Valkeyを自動で正常停止し、別volumeで隔離移行します。** 全image準備後、旧Web/DB/Valkeyの
   restartを無効化し、Web正常停止、Valkey SAVE、DB/Valkey正常停止を順に実施します。
-  全旧サービスの停止・終了コード0・OOMなし・restart無効と未知volume利用者不在を確認してから、
+  全旧サービスの停止・終了コード0・OOMなし・restart無効を確認してから、
   停止済み原本を別volumeへコピーします。隔離コピーでdump/restoreとmigration・検証を行い、
-  切替直前にも全原本の停止・restart無効、未知network/volume利用者不在を再確認します。
+  切替直前にも全原本の停止・restart無効を再確認します。
   旧標準5432/tcp・6379/tcp公開は停止で閉じるため、手作業のport除去は不要です。
-  host/container network、非標準port、自動全port公開、未知network peer、別volume利用者
-  （停止中を含む）は拒否します。新側DB/Valkeyは非公開で起動し、最後にWebを公開します。
+  network方式・公開port・起動コマンド・追加mountによる一律拒否は行いません。
+  移行用コンテナは隔離して起動し、切替先はCompose設定に従い、最後にWebを起動します。
+  対象外コンテナはnetwork接続・volume直接共有ともに列挙・停止・再設定しません。
+  **別コンテナ等による同一データへの同時書込みは検出しません。**
+  コピー中の外部書込みがないことは運用側で確保してください。無条件の安全保証ではありません。
+  コピー対象は指定のデータvolumeのみで、追加mountのデータは移行しません。
   `INFRA_WRITERS_FENCED` は不要で、残存設定の値は無視します。削除・移行作業は不要です。
   Docker管理権限で原本を再起動・execできる悪意プロセスや、管理外の自動起動ツールとの競合を
   保証する仕組みではありません。標準構成に毎回の手動writer宣言は要求しません。
@@ -81,11 +85,11 @@ Webはregistry digestを持つimageを利用します。独自Webのローカル
 
 1. 別媒体backupを取り、既存projectラベル、実image ID、実named volume、PGDATA、設定を記録します。
 2. **旧Composeの5432/6379公開はそのまま採用できます。事前のサービス停止・port除去は不要です。**
-   新releaseの標準ComposeはDB/Valkeyを非公開にします。ユーザーoverrideで移行先にdata portを
-   追加する構成は引き続き拒否します（overrideを勝手に書き換えることはありません）。
+   新releaseの標準ComposeはDB/Valkeyを非公開にします。ユーザーoverrideはそのまま使い、
+   data portの追加だけを理由に拒否せず、overrideを勝手に書き換えることもありません。
    CD実行時に全image準備→実image/volume/PGDATA/復旧記録の保存→旧Web停止→旧DB/Valkey正常停止→
-   停止済みvolumeコピー→非公開隔離環境でdump/restore/検証/migration→非公開DB/Valkey→公開Webの順に進みます。
-   復旧時も旧image・旧volumeを使いつつDB/Valkeyは非公開です。Web公開portは維持します。
+   停止済みvolumeコピー→非公開隔離環境でdump/restore/検証/migration→DB/Valkey→Webの順に進みます。
+   復旧時も旧image・旧volumeを使い、公開port等は切替時・復旧時ともCompose設定に従います。
 3. 同じproject、認証情報、DB名、外部stateを設定し `make infra-update`。
    新規導入用の `make setup` / `--initialize` は使いません。
 4. 起動後にアプリの健康状態、ログイン、投稿、media参照、監視を確認します。
@@ -164,9 +168,9 @@ only on an explicitly new installation. Existing migrations run before publicati
 PostgreSQL client. Valkey uses SAVE, clean stop and a separate volume copy preserving absolute TTLs.
 
 No manual writer declaration is required; legacy values are ignored. Legacy standard published data ports are accepted: CD stops the
-old services before copying data, and both migration and recovery start data services without host ports.
-All original services are rechecked offline with restart disabled before switching. No manual service stop or port removal is required. Docker-administrator interference is outside this guarantee. Target Compose port overrides remain forbidden.
-Only the three standard services,
+old services before copying data. Migration containers are isolated; switched/recovered services follow the Compose configuration.
+All original services are rechecked offline with restart disabled before switching. No manual service stop or port removal is required. Other containers are not enumerated or modified, including direct volume users. Concurrent writes to the same data by other containers are not detected; operators must prevent them. This is not an unconditional safety guarantee. Network modes, published ports, commands and extra mounts are not blanket-rejected; only the designated data volumes are copied.
+The update targets are web/db/valkey; additional Compose services are left alone. Only
 one application database, standard maintenance/template databases, bundled plpgsql/pg_trgm, and standalone
 RDB Valkey are supported. Unsupported features are rejected; customized server/template/ACL settings need
 separate DBA review. Use the same Unix account, fixed Compose project and external state directory.
@@ -176,3 +180,10 @@ Interrupted journals block normal startup. Explicit infra-recover is allowed onl
 only with unchanged configuration. Once publication begins, rollback is prohibited; use forward repair.
 CD preserves user environment/override files and stages matching commit materials outside checkout.
 The real Docker tests use an isolated random project and never touch existing production assets.
+
+### Release入力
+
+PR mergeにはbump_major / bump_minor / bump_patchラベルと既存semverタグを使用する。
+手動実行は指定release_tag、mergeはbuildと同じcommitをcheckoutする。
+配備先・Web image・Compose projectと希望版は明示値を使用し、fallbackしない。
+タグ作成の失敗はそのまま伝播する。
