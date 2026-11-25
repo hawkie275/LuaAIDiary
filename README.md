@@ -121,9 +121,8 @@ The web image builds OpenResty from source on Alpine and replaces the bundled Lu
 git clone https://github.com/hawkie275/LuaAIDiary.git
 cd LuaAIDiary
 cp .env.example .env
-# Edit passwords and read docs/infra-updates.md before confirming the writer fence.
+# Edit passwords and read docs/infra-updates.md for the supported single-Compose deployment. No writer declaration is required.
 export INFRA_STATE_DIR=/srv/luaaidiary/state
-export INFRA_WRITERS_FENCED=1
 make setup
 ```
 
@@ -135,7 +134,7 @@ For an existing installation (including the former PostgreSQL 18 setup):
 make infra-update
 ```
 
-Read the [upgrade and recovery runbook](docs/infra-updates.md) first: legacy standard DB/Valkey port bindings are accepted without manual service stops or port removal. CD stops the old services before copying data, then starts the new data services without host ports; Web remains public. Unmanaged writers and target data-port overrides are rejected. All updates retain old volumes/images and restore into separate volumes. The common entry point is also called by CD on a self-hosted runner, with matching commit materials and protected user configuration. `POSTGRES_DESIRED_VERSION=latest` opts into future stable majors; re-running CD resolves desired versions again. See [registry evidence and validation](docs/infra-validation.md).
+Read the [upgrade and recovery runbook](docs/infra-updates.md) first: legacy standard DB/Valkey port bindings are accepted without manual service stops or port removal. CD stops the old services before copying data, then starts the new data services without host ports; Web remains public. Standard deployments require no writer declaration or additional GitHub variable; legacy declaration values are ignored. All originals are rechecked offline with restart disabled before switching. Unmanaged writers and target data-port overrides are rejected. All updates retain old volumes/images and restore into separate volumes. The common entry point is also called by CD on a self-hosted runner, with matching commit materials and protected user configuration. `POSTGRES_DESIRED_VERSION=latest` opts into future stable majors; re-running CD resolves desired versions again. See [registry evidence and validation](docs/infra-validation.md).
 
 ### Normal startup after initialization
 

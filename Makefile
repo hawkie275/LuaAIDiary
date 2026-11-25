@@ -26,7 +26,7 @@ help:
 	@echo "LuaAIDiary 開発環境 Makefile"
 	@echo ""
 	@echo "利用可能なコマンド:"
-	@echo "  make infra-update - DB/Valkey/Webをバックアップ付きで更新（書込み遮断確認必須）"
+	@echo "  make infra-update - DB/Valkey/Webをバックアップ付きで更新（標準構成の停止・隔離を自動確認）"
 	@echo "  make infra-recover - 公開前の失敗のみ旧データへ明示的に復旧"
 	@echo "  make test-infra / test-infra-docker - 更新処理の専用テスト"
 	@echo "  make dev        - 開発サーバーを起動（ホットリロード有効）"

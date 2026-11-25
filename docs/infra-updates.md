@@ -42,14 +42,17 @@ Docker socketへのアクセスはroot相当の権限です。専用の信頼で
   カスタムcommand/entrypointは拒否します。独自ACL・CONFIG変更・永続化設定を使う構成は対象外です。
   SAVE成功後に正常停止し、別volumeへ全ファイルをコピーします。RDBの絶対期限を維持するためsession TTLは
   更新中も経過します。期限切れセッションが復活することはありません。
-- **管理対象外writerがないことを確認すること。** DB/Valkeyのホスト公開portは標準Composeから削除しました。
-  既存コンテナの標準5432/tcp・6379/tcp公開は採用可能です。CDが旧Webと旧DB/Valkeyを停止して
-  公開経路を閉じ、正常停止・restart無効を確認してからコピーします。手作業でのport除去は不要です。
-  host/container network、非標準port、自動全port公開、想定外の同一networkコンテナ、
-  旧data volumeを共有する別コンテナ（停止中を含む）はguardで拒否します。
-  Docker管理権限を持つ別プロセスのexec/attach、cron、外部worker、proxy経由のDBアクセス、
-  自動起動・自動更新ツールを止めてください。単一Web以外にwriterがいないことを確認したときだけ
-  `INFRA_WRITERS_FENCED=1` をexport／Actions変数に設定します。フラグはfirewallを設定するものではありません。
+- **標準単一Compose構成は自動でwriterを停止・隔離します。** 全image準備後、旧Web/DB/Valkeyの
+  restartを無効化し、Web正常停止、Valkey SAVE、DB/Valkey正常停止を順に実施します。
+  全旧サービスの停止・終了コード0・OOMなし・restart無効と未知volume利用者不在を確認してから、
+  停止済み原本を別volumeへコピーします。隔離コピーでdump/restoreとmigration・検証を行い、
+  切替直前にも全原本の停止・restart無効、未知network/volume利用者不在を再確認します。
+  旧標準5432/tcp・6379/tcp公開は停止で閉じるため、手作業のport除去は不要です。
+  host/container network、非標準port、自動全port公開、未知network peer、別volume利用者
+  （停止中を含む）は拒否します。新側DB/Valkeyは非公開で起動し、最後にWebを公開します。
+  `INFRA_WRITERS_FENCED` は不要で、残存設定の値は無視します。削除・移行作業は不要です。
+  Docker管理権限で原本を再起動・execできる悪意プロセスや、管理外の自動起動ツールとの競合を
+  保証する仕組みではありません。標準構成に毎回の手動writer宣言は要求しません。
 - host lockと状態lockはflockです。全入口で同一Unixユーザー・project・stateを使うこと。
   別ユーザー、別Docker host、NFS共有state、手動Docker操作に対する分散lockではありません。
 - state/backupは0700/0600で保護しますが**暗号化されません**。DB全データ、role password hash、
@@ -64,8 +67,7 @@ cp .env.example .env
 # .envのパスワード等を編集する
 export INFRA_STATE_DIR=/srv/luaaidiary/state
 export COMPOSE_PROJECT_NAME=luaaidiary
-# 上記のwriter遮断条件を確認した後だけ:
-export INFRA_WRITERS_FENCED=1
+# 標準構成の停止・隔離は自動制御（手動writer宣言は不要）:
 make setup
 ```
 
@@ -84,7 +86,7 @@ Webはregistry digestを持つimageを利用します。独自Webのローカル
    CD実行時に全image準備→実image/volume/PGDATA/復旧記録の保存→旧Web停止→旧DB/Valkey正常停止→
    停止済みvolumeコピー→非公開隔離環境でdump/restore/検証/migration→非公開DB/Valkey→公開Webの順に進みます。
    復旧時も旧image・旧volumeを使いつつDB/Valkeyは非公開です。Web公開portは維持します。
-3. 同じproject、認証情報、DB名、外部stateを設定し `INFRA_WRITERS_FENCED=1 make infra-update`。
+3. 同じproject、認証情報、DB名、外部stateを設定し `make infra-update`。
    新規導入用の `make setup` / `--initialize` は使いません。
 4. 起動後にアプリの健康状態、ログイン、投稿、media参照、監視を確認します。
 
@@ -94,7 +96,7 @@ Webはregistry digestを持つimageを利用します。独自Webのローカル
 2. PostgreSQL・Valkey・Webを**すべて事前pull**、digestと実行バージョンを確認。実バージョンのdowngradeを拒否。
    CDではWebのOCI revisionと配備commitが一致することも必須。
 3. 永続journal、元のinspect、旧設定、旧image保持タグを記録。WebとDB/Valkeyの再起動policyを無効にしてWebを停止。
-4. Valkey SAVE、DBとValkeyの正常停止を確認。停止済み旧DBをコピーし、networkなしの隔離したコピーを起動。
+4. Valkey SAVE、全旧サービスの正常停止・restart無効を確認。停止済み旧DBをコピーし、networkなしの隔離したコピーを起動。
    対象版のclientを使ってglobalsとアプリDBの論理backupを保存。旧本体volumeは書き換えません。
 5. 空の別DB volumeを対象版で初期化し復元。init SQLは使わず、復元検証後に既存migration runnerを対象版clientで実行。
    Web内のAlpine版pg clientには依存しません。SQLエラーは更新全体へ伝播します。
@@ -115,7 +117,6 @@ SIGKILL、Docker daemon停止、host電源断ではその処理を保証でき�
 
 ```bash
 # 失敗時と同じrelease資材、.env、ユーザーoverride、project、stateを使用
-export INFRA_WRITERS_FENCED=1
 make infra-recover
 ```
 
@@ -136,7 +137,7 @@ make infra-recover
 Actions変数 `DEPLOY_PATH` にcheckout外の絶対パス（例 `/srv/luaaidiary`）を設定し、
 そこへ `.env` と必要なら `docker-compose.override.yml` を運用者が事前配置してください。
 DNS等のユーザー設定はこのoverrideに残します。旧 `LOCAL_DNS` 変数からoverrideを上書きする方式は廃止しました。
-writer条件確認後に `INFRA_WRITERS_FENCED=1` を設定します。
+通常のmerge/CDだけでWeb/DB/Valkeyを更新します。writer宣言や追加のGitHub変数は不要です。
 
 - Webをbuildしたcommitと同じCompose/scripts/docker/web/init SQL/migrationsを新release directoryへGit archiveで配備。
   `.env` とユーザーoverrideをコピー・上書きせず、その外部ファイルを読みます。
@@ -162,9 +163,9 @@ a fresh cluster restores globals, ownership, sequences, extensions and migration
 only on an explicitly new installation. Existing migrations run before publication using the target
 PostgreSQL client. Valkey uses SAVE, clean stop and a separate volume copy preserving absolute TTLs.
 
-Confirm there are no unmanaged writers. Legacy standard published data ports are accepted: CD stops the
+No manual writer declaration is required; legacy values are ignored. Legacy standard published data ports are accepted: CD stops the
 old services before copying data, and both migration and recovery start data services without host ports.
-No manual service stop or port removal is required. Target Compose port overrides remain forbidden.
+All original services are rechecked offline with restart disabled before switching. No manual service stop or port removal is required. Docker-administrator interference is outside this guarantee. Target Compose port overrides remain forbidden.
 Only the three standard services,
 one application database, standard maintenance/template databases, bundled plpgsql/pg_trgm, and standalone
 RDB Valkey are supported. Unsupported features are rejected; customized server/template/ACL settings need

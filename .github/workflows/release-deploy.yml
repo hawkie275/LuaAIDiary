@@ -161,7 +161,6 @@ jobs:
     env:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
       DEPLOY_WEB_IMAGE: ghcr.io/hawkie275/luaaidiary:${{ needs.build_and_push.outputs.version }}
-      INFRA_WRITERS_FENCED: ${{ vars.INFRA_WRITERS_FENCED }}
       COMPOSE_PROJECT_NAME: luaaidiary
     steps:
       - uses: actions/checkout@v4
@@ -183,7 +182,6 @@ jobs:
     env:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
       DEPLOY_WEB_IMAGE: ghcr.io/hawkie275/luaaidiary:${{ inputs.release_tag }}
-      INFRA_WRITERS_FENCED: ${{ vars.INFRA_WRITERS_FENCED }}
       COMPOSE_PROJECT_NAME: luaaidiary
       RELEASE_TAG: ${{ inputs.release_tag }}
     steps:

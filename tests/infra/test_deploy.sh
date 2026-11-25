@@ -31,12 +31,15 @@ git -C "$tmp/repo" init -q
 git -C "$tmp/repo" add .
 git -C "$tmp/repo" -c user.name=fixture -c user.email=fixture@example.invalid commit -qm fixture
 expected=$(git -C "$tmp/repo" rev-parse HEAD)
-export DEPLOY_PATH=$tmp/deploy DEPLOY_WEB_IMAGE=fixture:tag INFRA_WRITERS_FENCED=1
+unset INFRA_WRITERS_FENCED
+export DEPLOY_PATH=$tmp/deploy DEPLOY_WEB_IMAGE=fixture:tag
 (cd "$tmp/repo" && bash "$ROOT/scripts/deploy-release.sh")
 [[ $(cat "$tmp/deploy/state/observed-commit") == "$expected" ]]
 [[ $(cat "$tmp/deploy/current/docker-compose.yml") == 'matching compose' ]]
 cmp "$tmp/expected-env" "$tmp/deploy/.env"
 cmp "$tmp/expected-override" "$tmp/deploy/docker-compose.override.yml"
+# A stale legacy setting must also remain harmless.
+(cd "$tmp/repo" && INFRA_WRITERS_FENCED=0 bash "$ROOT/scripts/deploy-release.sh")
 previous=$(readlink "$tmp/deploy/current")
 if (cd "$tmp/repo" && FAIL_DEPLOY=1 bash "$ROOT/scripts/deploy-release.sh"); then
     echo 'failed update was not propagated' >&2; exit 1

@@ -55,6 +55,25 @@ reject assert_offline fixture; ok 'running source rejected before copy'
 offline=$(jq '.[0].State.Running=false | .[0].HostConfig.RestartPolicy.Name="always"' <<< "$offline")
 reject assert_offline fixture; ok 'restart-enabled source rejected before copy'
 unset -f docker
+OLD='{"web":{"Id":"web"},"db":{"Id":"db"},"valkey":{"Id":"cache"}}'
+# Invoked indirectly by assert_sources_offline through reject.
+# shellcheck disable=SC2329
+docker() {
+    if [[ $2 == web ]]; then
+        echo '[{"State":{"Running":true,"ExitCode":0,"OOMKilled":false},"HostConfig":{"RestartPolicy":{"Name":"no"}}}]'
+    else
+        echo '[{"State":{"Running":false,"ExitCode":0,"OOMKilled":false},"HostConfig":{"RestartPolicy":{"Name":"no"}}}]'
+    fi
+}
+reject assert_sources_offline; ok 'restarted Web rejected at final source boundary'
+# shellcheck disable=SC2329
+docker() { echo '[{"State":{"Running":false,"ExitCode":0,"OOMKilled":true},"HostConfig":{"RestartPolicy":{"Name":"no"}}}]'; }
+reject assert_sources_offline; ok 'OOM source rejected at final source boundary'
+unset -f docker
+reject bash -c "source '$ROOT/scripts/infra-update.sh'; docker() { return 26; }; stop_clean fixture"
+ok 'stop command failure propagates'
+reject bash -c "source '$ROOT/scripts/infra-update.sh'; docker() { echo '[{\"State\":{\"ExitCode\":137,\"OOMKilled\":false}}]'; }; stop_clean fixture"
+ok 'forced termination is not a clean stop'
 reject bash -c "source '$ROOT/scripts/infra-update.sh'; docker() { return 25; }; guard_volume_users fixture"
 ok 'volume-user inspection failure propagates'
 # Cleanup must only act when this process owns the fencing stage, never on a
@@ -65,6 +84,10 @@ export FENCE_TEST_LOG=$tmp/fence.log
 reject bash -c "source '$ROOT/scripts/infra-update.sh'; STATE='$tmp/fencing'; FENCING=yes; docker() { echo \"\$*\" >> \"\$FENCE_TEST_LOG\"; }; trap fail_closed EXIT; exit 17"
 [[ $(grep -c '^stop --time 120 ' "$FENCE_TEST_LOG") == 3 ]]
 ok 'fencing failure stops all three services without starting rollback'
+rm "$FENCE_TEST_LOG"
+reject bash -c "source '$ROOT/scripts/infra-update.sh'; STATE='$tmp/fencing'; FENCING=yes; docker() { echo \"\$*\" >> \"\$FENCE_TEST_LOG\"; }; trap fail_closed EXIT; trap 'exit 143' TERM; kill -TERM \$\$"
+[[ $(grep -c '^stop --time 120 ' "$FENCE_TEST_LOG") == 3 ]]
+ok 'TERM during fencing stops all three services and never publishes'
 rm "$FENCE_TEST_LOG"
 reject bash -c "source '$ROOT/scripts/infra-update.sh'; STATE='$tmp/fencing'; docker() { echo called >> \"\$FENCE_TEST_LOG\"; }; trap fail_closed EXIT; exit 17"
 [[ ! -e $FENCE_TEST_LOG ]]; ok 'non-owner failure never stops another deployment'

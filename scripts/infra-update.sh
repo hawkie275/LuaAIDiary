@@ -185,13 +185,18 @@ assert_offline() {
             .HostConfig.RestartPolicy.Name=="no"' >/dev/null || die "source not safely offline: $id"
     done
 }
+assert_sources_offline() {
+    local id
+    while read -r id; do
+        assert_offline "$id"
+    done < <(jq -r '.[] | select(.!=null) | .Id' <<< "$OLD")
+}
 stop_clean() {
     docker stop --time 120 "$1" >/dev/null
     docker inspect "$1" | jq -e '.[0].State | .ExitCode==0 and .OOMKilled==false' >/dev/null || die "unclean stop: $1"
 }
 recover() {
     # Explicit operator action ONLY before the publication boundary; never automatic.
-    [[ ${INFRA_WRITERS_FENCED:-} == 1 ]] || die 'recovery requires external writer fence'
     local journal=$STATE/transaction.json current old name id tx
     current=$(jq -er .phase "$journal")
     case "$current" in prepared|stopping|offline|restored|validated|switching|recovering) ;; *) die "recovery forbidden at phase $current; forward repair required";; esac
@@ -207,6 +212,11 @@ recover() {
     for name in "$tx-source" "$tx-target" "$tx-cache"; do
         if docker inspect "$name" >/dev/null 2>&1; then docker stop --time 120 "$name" >/dev/null; fi
     done
+    # Recovery also derives safety from actual volume users, never the obsolete
+    # writer declaration. Unknown users (including stopped ones) remain forbidden.
+    DB_ID=$(jq -r .db.Id <<< "$old"); VK_ID=$(jq -r .valkey.Id <<< "$old")
+    guard_volume_users "$(mount_name "$(jq .db <<< "$old")" /var/lib/postgresql)" \
+        "$(mount_name "$(jq .valkey <<< "$old")" /data)"
     # Source images/actual data mounts were recorded before any mutation.
     jq '{PG_IMAGE:.db.Image,VALKEY_IMAGE:.valkey.Image,WEB_IMAGE:.web.Image,
         PG_VOLUME:(.db.Mounts[]|select(.Destination=="/var/lib/postgresql")|.Name),
@@ -255,7 +265,8 @@ main() {
         compose "$@"; return
     fi
     [[ $action == update && $# == 0 ]] || die 'usage: infra-update.sh update [--initialize] | compose ARGS'
-    [[ ${INFRA_WRITERS_FENCED:-} == 1 ]] || die 'INFRA_WRITERS_FENCED=1 required; read runbook'
+    # Legacy INFRA_WRITERS_FENCED values are ignored. Safety comes from measured
+    # container/volume isolation and clean offline boundaries, not a declaration.
     local config db valkey web pg_want vk_want pg_version vk_version old_pg old_vk old_data old_version image
     config=$(compose config --format json)
     jq -e '(.services | keys | sort)==["db","valkey","web"] and all(.services.db,.services.valkey; ((.ports // [])|length)==0 and .network_mode==null and .command==null and .entrypoint==null)' <<< "$config" >/dev/null || die 'unsupported Compose services/ports/command/network override'
@@ -343,11 +354,11 @@ main() {
     phase stopping
     local id name source
     while read -r id; do docker update --restart=no "$id" >/dev/null; done < <(jq -r '.[] | select(.!=null) | .Id' <<< "$OLD")
-    if [[ $web != null ]]; then docker stop --time 60 "$(jq -r .Id <<< "$web")" >/dev/null; fi
+    if [[ $web != null ]]; then stop_clean "$(jq -r .Id <<< "$web")"; fi
     if [[ $db != null ]]; then
         [[ $(docker exec "$VK_ID" valkey-cli SAVE) == OK ]] || die 'Valkey SAVE failed'
         stop_clean "$DB_ID"; stop_clean "$VK_ID"
-        assert_offline "$DB_ID" "$VK_ID"
+        assert_sources_offline
         guard_volume_users "$old_pg" "$old_vk"
         phase offline
         source=$TX-source
@@ -392,6 +403,14 @@ main() {
     done
     [[ $ready == yes ]] || die 'restored Valkey did not become ready'
     for name in "${TEMPS[@]}"; do stop_clean "$name"; done
+    # Recheck the originals after the entire isolated migration, before changing
+    # runtime pins or allowing Compose to replace any original container.
+    assert_sources_offline
+    if [[ $db != null ]]; then
+        guard_volume_users "$old_pg" "$old_vk"
+        guard_container "$db" /var/lib/postgresql
+        guard_container "$valkey" /data
+    fi
     phase validated
     jq .target "$STATE/transaction.json" | atomic "$STATE/active.json"
     load_active
