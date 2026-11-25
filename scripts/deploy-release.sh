@@ -14,7 +14,8 @@ deploy=$(realpath -m "$DEPLOY_PATH")
 [[ -f $deploy/.env ]] || { echo "Provision $deploy/.env before deploying" >&2; exit 1; }
 export DEPLOY_COMMIT
 DEPLOY_COMMIT=$(git rev-parse HEAD)
-export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-luaaidiary}
+: "${COMPOSE_PROJECT_NAME:?Set the deployment Compose project}"
+export COMPOSE_PROJECT_NAME
 export INFRA_STATE_DIR=$deploy/state INFRA_ENV_FILE=$deploy/.env
 export INFRA_OVERRIDE=$deploy/docker-compose.override.yml
 mkdir -p "$deploy/releases"

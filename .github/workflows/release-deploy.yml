@@ -15,7 +15,6 @@ on:
 permissions:
   contents: write
   packages: write
-  pull-requests: write
 
 concurrency:
   group: luaaidiary-production-deploy
@@ -33,6 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Calculate next version from PR labels
@@ -41,12 +41,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          git fetch --tags --force
-
           labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
-          echo "PR labels: ${labels:-<none>}"
-
-          bump="patch"
+          echo "PR labels: $labels"
 
           if echo " $labels " | grep -qi " bump_major "; then
             bump="major"
@@ -55,38 +51,39 @@ jobs:
           elif echo " $labels " | grep -qi " bump_patch "; then
             bump="patch"
           else
-            echo "No bump_ labels found. Fallback to patch bump."
+            echo "Missing required bump_major, bump_minor or bump_patch label" >&2
+            exit 1
           fi
           echo "Selected bump type: $bump"
 
           latest_tag="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)"
 
           if [ -z "$latest_tag" ]; then
-            next_tag="v0.1.0"
-            echo "No existing semver tag. Using initial version: $next_tag"
-          else
-            core="${latest_tag#v}"
-            IFS='.' read -r major minor patch <<< "$core"
-
-            case "$bump" in
-              major)
-                major=$((major + 1))
-                minor=0
-                patch=0
-                ;;
-              minor)
-                minor=$((minor + 1))
-                patch=0
-                ;;
-              patch)
-                patch=$((patch + 1))
-                ;;
-            esac
-
-            next_tag="v${major}.${minor}.${patch}"
-            echo "Latest tag: $latest_tag"
-            echo "Calculated next tag: $next_tag"
+            echo "Missing existing semver release tag" >&2
+            exit 1
           fi
+
+          core="${latest_tag#v}"
+          IFS='.' read -r major minor patch <<< "$core"
+
+          case "$bump" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+
+          next_tag="v${major}.${minor}.${patch}"
+          echo "Latest tag: $latest_tag"
+          echo "Calculated next tag: $next_tag"
 
           echo "version=$next_tag" >> "$GITHUB_OUTPUT"
           echo "app_version=${next_tag#v}" >> "$GITHUB_OUTPUT"
@@ -110,15 +107,10 @@ jobs:
           set -euo pipefail
           tag="${{ steps.version.outputs.version }}"
 
-          if git rev-parse "$tag" >/dev/null 2>&1; then
-            echo "Tag already exists: $tag"
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag "$tag"
-            git push origin "$tag"
-            echo "Created and pushed tag: $tag"
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "$tag"
+          git push origin "$tag"
 
       - name: Build and push web image
         uses: docker/build-push-action@v6
@@ -134,25 +126,6 @@ jobs:
           tags: |
             ghcr.io/hawkie275/luaaidiary:${{ steps.version.outputs.version }}
             ghcr.io/hawkie275/luaaidiary:latest
-
-      - name: Comment deployed version to PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const version = '${{ steps.version.outputs.version }}';
-            const prNumber = context.payload.pull_request.number;
-            const body = [
-              '## Release Version',
-              `- Selected by labels: ${version}`,
-              `- Image: ghcr.io/hawkie275/luaaidiary:${version}`
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body
-            });
 
   deploy_web:
     needs: build_and_push
@@ -183,11 +156,7 @@ jobs:
       DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
       DEPLOY_WEB_IMAGE: ghcr.io/hawkie275/luaaidiary:${{ inputs.release_tag }}
       COMPOSE_PROJECT_NAME: luaaidiary
-      RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
-      - name: Validate release tag
-        shell: bash
-        run: '[[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]'
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.release_tag }}
